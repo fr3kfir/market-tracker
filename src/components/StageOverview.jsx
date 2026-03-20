@@ -1,18 +1,13 @@
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-export const STAGE_COLORS = {
-  S1: '#64748b',
-  S2: '#3b82f6',
-  S3: '#f59e0b',
-  S4: '#e879f9',
-};
+export const STAGE_COLORS = { S1: '#4a6080', S2: '#3b82f6', S3: '#f59e0b', S4: '#e879f9' };
 
 const STAGE_LABELS = { S1: 'Stage 1', S2: 'Stage 2', S3: 'Stage 3', S4: 'Stage 4' };
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#161920] border border-[#2a2d3a] rounded p-2 text-xs font-mono shadow-lg">
+    <div className="rounded p-2 text-xs font-mono shadow-lg" style={{ background: '#0c1220', border: '1px solid #1a2540' }}>
       <div className="text-gray-400 mb-1">{label}</div>
       {payload.map(p => (
         <div key={p.name} style={{ color: STAGE_COLORS[p.name] }}>
@@ -82,13 +77,13 @@ export default function StageOverview({ distribution, history, totalStocks = 560
         <LineChart data={history} margin={{ top: 2, right: 4, left: -28, bottom: 0 }}>
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 9, fill: '#4b5563' }}
+            tick={{ fontSize: 9, fill: '#3a4a60' }}
             tickLine={false}
             axisLine={false}
             interval={4}
           />
           <YAxis
-            tick={{ fontSize: 9, fill: '#4b5563' }}
+            tick={{ fontSize: 9, fill: '#3a4a60' }}
             tickLine={false}
             axisLine={false}
           />

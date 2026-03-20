@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MarketBreadth from './components/MarketBreadth';
+import MarketTicker from './components/MarketTicker';
 import StageOverview from './components/StageOverview';
 import SectorTable from './components/SectorTable';
 import ThemeTracker from './components/ThemeTracker';
@@ -20,7 +21,7 @@ function RefreshBadge({ countdown, lastUpdated, justRefreshed, loading }) {
     <div className="flex items-center gap-2">
       <div className="relative w-6 h-6 flex-shrink-0">
         <svg className="w-6 h-6 -rotate-90" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="#1e2130" strokeWidth="2.5" />
+          <circle cx="12" cy="12" r="9" fill="none" stroke="#1a2540" strokeWidth="2.5" />
           <circle
             cx="12" cy="12" r="9" fill="none"
             stroke={loading ? '#f59e0b' : justRefreshed ? '#34d399' : '#3b82f6'}
@@ -50,6 +51,25 @@ const TABS = [
   { key: 'sectors', label: 'Sectors' },
   { key: 'themes', label: 'Themes' },
 ];
+
+// Filter stocks from stocksByTicker map by breadth criterion
+function filterStocksByBreadth(filterKey, stocksByTicker) {
+  const allStocks = Object.values(stocksByTicker);
+  switch (filterKey) {
+    case 'newHighs':
+      return allStocks.filter(s => s.distSma52wHigh !== undefined ? s.distSma52wHigh >= -5 : false);
+    case 'advancing':
+      return allStocks.filter(s => s.change > 0);
+    case 'upFromOpen':
+      return allStocks.filter(s => s.change > 0);
+    case 'upOnVol':
+      return allStocks.filter(s => s.change > 0 && s.volBuzz > 1.0);
+    case 'up4':
+      return allStocks.filter(s => s.change >= 4);
+    default:
+      return allStocks.filter(s => s.change > 0);
+  }
+}
 
 export default function App() {
   const [view, setView] = useState('dashboard');
@@ -107,6 +127,13 @@ export default function App() {
     setView('leaders');
   }, []);
 
+  const handleBreadthFilter = useCallback((filterKey, filterLabel) => {
+    const filtered = filterStocksByBreadth(filterKey, stocksByTickerRef.current);
+    setLeaders(filtered);
+    setSelectedName(filterLabel);
+    setView('leaders');
+  }, []);
+
   if (view === 'leaders') {
     return <LeadersView name={selectedName} stocks={leaders} onBack={() => setView('dashboard')} />;
   }
@@ -114,7 +141,7 @@ export default function App() {
   // Loading skeleton
   if (loading && !marketData) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d0f14' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#070b14' }}>
         <div className="text-center">
           <div className="text-2xl font-bold font-mono mb-3">
             <span className="text-blue-500">▲ MARKET</span>
@@ -142,16 +169,16 @@ export default function App() {
   const { breadth, sectorData, stageDist, stageHistory, themeData } = marketData || {};
 
   return (
-    <div className="min-h-screen" style={{ background: '#0d0f14' }}>
+    <div className="min-h-screen" style={{ background: '#070b14' }}>
       {/* ── Header ── */}
-      <header className="border-b border-[#1e2130] sticky top-0 z-20" style={{ background: '#0d0f14' }}>
+      <header className="border-b sticky top-0 z-20" style={{ background: '#070b14', borderColor: '#1a2540' }}>
         <div className="max-w-screen-2xl mx-auto px-3 sm:px-5 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <span className="text-base sm:text-lg font-bold tracking-tight font-mono whitespace-nowrap">
               <span className="text-blue-500">▲ MARKET</span>
               <span className="text-pink-500">PULSE</span>
             </span>
-            <span className="hidden sm:block text-xs text-gray-600 border-l border-[#2a2d3a] pl-3 font-mono">
+            <span className="hidden sm:block text-xs text-gray-600 border-l border-[#1a2540] pl-3 font-mono">
               US EQUITY · LIVE DATA
             </span>
           </div>
@@ -163,7 +190,7 @@ export default function App() {
           />
         </div>
         {/* Mobile tabs */}
-        <div className="flex sm:hidden border-t border-[#1e2130]">
+        <div className="flex sm:hidden border-t" style={{ borderColor: '#1a2540' }}>
           {TABS.map(tab => (
             <button key={tab.key} onClick={() => setMobileTab(tab.key)}
               className={`flex-1 py-2 text-xs font-medium transition-colors ${
@@ -174,6 +201,9 @@ export default function App() {
           ))}
         </div>
       </header>
+
+      {/* ── Market Ticker ── */}
+      <MarketTicker />
 
       {/* Error banner */}
       {error && (
@@ -187,7 +217,7 @@ export default function App() {
       <main className="hidden sm:block max-w-screen-2xl mx-auto px-3 sm:px-5 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-3">
           <div className="lg:col-span-2">
-            {breadth && <MarketBreadth data={breadth} />}
+            {breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
           </div>
           <div className="lg:col-span-3">
             {stageDist && stageHistory && (
@@ -210,7 +240,7 @@ export default function App() {
 
       {/* ── Mobile layout ── */}
       <div className="sm:hidden px-3 py-3">
-        {mobileTab === 'breadth' && breadth && <MarketBreadth data={breadth} />}
+        {mobileTab === 'breadth' && breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
         {mobileTab === 'stage' && stageDist && stageHistory && (
           <StageOverview distribution={stageDist} history={stageHistory} />
         )}

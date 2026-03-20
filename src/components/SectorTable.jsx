@@ -40,7 +40,7 @@ export default function SectorTable({ sectors, onSectorClick }) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs min-w-[480px]">
           <thead>
-            <tr className="border-b border-[#1e2130]">
+            <tr className="border-b border-[#0f1828]">
               <th className="text-left pb-2 pr-3 text-gray-600 font-medium uppercase tracking-wider">Sector</th>
               <th className="text-left pb-2 pr-3 text-gray-600 font-medium uppercase tracking-wider">Distribution</th>
               <th className="text-center pb-2 px-1 text-gray-600 font-medium uppercase tracking-wider">S1</th>
@@ -50,15 +50,15 @@ export default function SectorTable({ sectors, onSectorClick }) {
               <th className="text-left pb-2 pl-2 text-gray-600 font-medium uppercase tracking-wider">Health</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#141720]">
+          <tbody className="divide-y divide-[#0f1828]">
             {sectors.map((row) => {
               const count = SECTOR_COUNTS[row.sector] || '—';
               return (
-                <tr key={row.sector} className="hover:bg-[#161a24] transition-colors group">
+                <tr key={row.sector} className="hover:bg-[#111e35] transition-colors group">
                   <td className="py-2.5 pr-3">
                     <button
                       onClick={() => onSectorClick(row.sector)}
-                      className="text-left text-gray-300 hover:text-white group-hover:text-blue-400 transition-colors font-medium"
+                      className="text-left text-slate-300 hover:text-sky-400 group-hover:text-sky-400 transition-colors font-medium"
                     >
                       {row.sector}
                       <span className="text-gray-600 font-normal ml-1">({count})</span>

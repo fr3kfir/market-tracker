@@ -39,9 +39,9 @@ export default function LeadersView({ name, stocks, onBack }) {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: '#0d0f14' }}>
+    <div className="min-h-screen" style={{ background: '#070b14' }}>
       {/* Header */}
-      <div className="border-b border-[#1e2130] sticky top-0 z-10" style={{ background: '#0d0f14' }}>
+      <div className="border-b border-[#1a2540] sticky top-0 z-10" style={{ background: '#070b14' }}>
         <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
           <button
             onClick={onBack}
@@ -63,7 +63,7 @@ export default function LeadersView({ name, stocks, onBack }) {
       <div className="max-w-screen-2xl mx-auto px-4 py-4">
         <div className="panel overflow-x-auto">
           <table className="w-full text-xs min-w-[640px]">
-            <thead className="border-b border-[#1e2130]">
+            <thead className="border-b border-[#1a2540]">
               <tr>
                 <th className="pb-3 px-2 text-gray-600 text-xs font-medium w-8">#</th>
                 <Th label="Ticker" field="ticker" />
@@ -76,9 +76,9 @@ export default function LeadersView({ name, stocks, onBack }) {
                 <Th label="Stage" field="stage" align="center" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#141720]">
+            <tbody className="divide-y divide-[#1a2540]">
               {sorted.map((s, i) => (
-                <tr key={s.ticker} className="hover:bg-[#161a24] transition-colors">
+                <tr key={s.ticker} className="hover:bg-[#111e35] transition-colors">
                   <td className="py-2.5 px-2 text-gray-700 font-mono">{i + 1}</td>
                   <td className="py-2.5 px-2">
                     <span className="font-mono font-bold text-white">{s.ticker}</span>
