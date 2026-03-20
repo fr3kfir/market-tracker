@@ -5,20 +5,40 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
+:root {
+  --bg: #0d1117;
+  --bg-panel: #161b22;
+  --border: #21262d;
+  --text: #e6edf3;
+  --text-muted: #7d8590;
+  --text-faint: #3d444d;
+}
+
+.light {
+  --bg: #f6f8fa;
+  --bg-panel: #ffffff;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --text-muted: #636c76;
+  --text-faint: #c1cbd4;
+}
+
 body {
-  background: #070b14;
-  color: #c8d0e0;
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
 }
 
 #root { width: 100%; min-height: 100vh; }
 
 .panel {
-  background: #0c1220;
-  border: 1px solid #1a2540;
-  border-radius: 10px;
-  padding: 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 18px;
 }
 
 .panel-title {
@@ -26,15 +46,15 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: #4a6080;
+  color: var(--text-faint);
   margin-bottom: 14px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #1a2540;
+  border-bottom: 1px solid var(--border);
 }
 
 .bar-track {
   height: 5px;
-  background: #131d30;
+  background: var(--bg);
   border-radius: 99px;
   overflow: hidden;
 }
@@ -62,7 +82,43 @@ body {
 }
 
 .clickable-row:hover {
-  background: #111e35;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+/* Theme toggle button */
+.theme-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.theme-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+/* Timeframe button */
+.tf-btn {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.tf-btn.active {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
 }
 
 /* Ticker animation */
@@ -93,8 +149,8 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #070b14; }
-::-webkit-scrollbar-thumb { background: #1a2540; border-radius: 2px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* Number change flash */
 @keyframes flash-green {

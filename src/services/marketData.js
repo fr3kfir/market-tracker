@@ -140,12 +140,13 @@ function calcOverallStages(stocks) {
 function calcThemePerf(theme, etfSym, historyMap) {
   const hist = historyMap[etfSym];
   if (!hist || !hist.closes || hist.closes.length < 5) {
-    return { theme, w1: 0, m1: 0, ytd: 0 };
+    return { theme, d1: 0, w1: 0, m1: 0, m3: 0, ytd: 0 };
   }
   const closes = hist.closes.filter(Boolean);
   const last = closes[closes.length - 1];
   const w1price = closes[Math.max(0, closes.length - 6)];
   const m1price = closes[Math.max(0, closes.length - 22)];
+  const m3price = closes[Math.max(0, closes.length - 66)]; // ~66 trading days = 3 months
   // YTD: find first close of the year
   const timestamps = hist.timestamps || [];
   const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
@@ -153,7 +154,7 @@ function calcThemePerf(theme, etfSym, historyMap) {
   const ytdPrice = ytdIdx >= 0 ? closes[ytdIdx] : closes[0];
 
   const pct = (from, to) => from ? Math.round(((to - from) / from) * 1000) / 10 : 0;
-  return { theme, w1: pct(w1price, last), m1: pct(m1price, last), ytd: pct(ytdPrice, last) };
+  return { theme, d1: 0, w1: pct(w1price, last), m1: pct(m1price, last), m3: pct(m3price, last), ytd: pct(ytdPrice, last) };
 }
 
 // ── Stage history (last 20 trading days from all stocks) ──────────────
@@ -196,7 +197,13 @@ export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeE
   const sectorData = calcSectorData(sectorStocksMap, stocksByTicker);
   const stageDist = calcOverallStages(sectorStocks);
   const stageHistory = buildStageHistory(stageDist);
-  const themeData = themes.map(theme => calcThemePerf(theme, themeEtfs[theme], history));
+
+  // Build theme data and patch d1 from ETF quote change
+  const themeData = themes.map(theme => {
+    const perf = calcThemePerf(theme, themeEtfs[theme], history);
+    perf.d1 = stocksByTicker[themeEtfs[theme]]?.change || 0;
+    return perf;
+  });
 
   return { breadth, sectorData, stageDist, stageHistory, themeData, stocksByTicker };
 }
@@ -208,4 +215,38 @@ export function getLeaders(name, sectorStocksMap, themeStocksMap, stocksByTicker
     .map(t => stocksByTicker[t])
     .filter(Boolean)
     .sort((a, b) => b.rs - a.rs);
+}
+
+// ── Enrich stock list with historical performance (w1/m1/m3/ytd) ──────
+export async function enrichWithHistory(stocks) {
+  if (!stocks.length) return stocks;
+  const tickers = stocks.map(s => s.ticker);
+  let history = {};
+  try {
+    const r = await fetch(`/api/history?symbols=${tickers.join(',')}&range=1y`);
+    history = await r.json();
+  } catch { return stocks; }
+
+  const pct = (from, to) => (from && to) ? Math.round(((to - from) / from) * 1000) / 10 : null;
+
+  return stocks.map(s => {
+    const hist = history[s.ticker];
+    if (!hist || !hist.closes || hist.closes.length < 5) return s;
+    const closes = hist.closes.filter(Boolean);
+    const last = closes[closes.length - 1];
+    const w1price = closes[Math.max(0, closes.length - 6)];
+    const m1price = closes[Math.max(0, closes.length - 22)];
+    const m3price = closes[Math.max(0, closes.length - 66)];
+    const timestamps = hist.timestamps || [];
+    const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
+    const ytdIdx = timestamps.findIndex(t => t >= yearStart);
+    const ytdPrice = ytdIdx >= 0 ? closes[ytdIdx] : closes[0];
+    return {
+      ...s,
+      w1: pct(w1price, last),
+      m1: pct(m1price, last),
+      m3: pct(m3price, last),
+      ytd: pct(ytdPrice, last),
+    };
+  });
 }

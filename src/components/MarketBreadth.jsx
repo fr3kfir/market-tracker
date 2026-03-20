@@ -38,31 +38,36 @@ export default function MarketBreadth({ data, onFilterClick }) {
     <div className="panel h-full">
       <div className="panel-title">Market Breadth</div>
       <div className="space-y-3">
-        {metrics.map((m) => (
+        {metrics.map((m, idx) => (
           <div
             key={m.label}
             className="clickable-row group"
             onClick={() => onFilterClick?.(m.filterKey, m.filterLabel)}
             title={`Click to see ${m.filterLabel}`}
           >
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">{m.label}</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-bold" style={{ color: m.pct >= 50 ? '#38bdf8' : '#f472b6' }}>
-                  {m.pct}%
-                </span>
-                <span className="text-xs text-slate-600 group-hover:text-blue-500 transition-colors">→</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{m.label}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{
+                  fontSize: '11px', fontFamily: 'monospace', fontWeight: 700,
+                  padding: '1px 7px', borderRadius: '20px',
+                  background: m.pct >= 50 ? 'rgba(59,130,246,0.15)' : 'rgba(244,114,182,0.15)',
+                  color: m.pct >= 50 ? '#38bdf8' : '#f472b6',
+                }}>{m.pct}%</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>→</span>
               </div>
             </div>
-            <div className="bar-track">
-              <div
-                className={m.pct >= 50 ? 'bar-fill-pos' : 'bar-fill-neg'}
-                style={{ width: `${m.pct}%` }}
-              />
+            <div style={{ height: '7px', background: 'var(--bg)', borderRadius: '99px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${m.pct}%`, borderRadius: '99px',
+                background: m.pct >= 50 ? 'linear-gradient(90deg,#1d6fe8,#38bdf8)' : 'linear-gradient(90deg,#be185d,#f472b6)',
+                transition: 'width 0.6s ease',
+                boxShadow: m.pct >= 50 ? '0 0 8px rgba(56,189,248,0.3)' : '0 0 8px rgba(244,114,182,0.3)',
+              }} />
             </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-xs font-mono" style={{ color: '#38bdf8', opacity: 0.8 }}>{m.left}</span>
-              <span className="text-xs font-mono" style={{ color: '#f472b6', opacity: 0.8 }}>{m.right}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#3b82f6', opacity: 0.9 }}>{m.left}</span>
+              <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#f472b6', opacity: 0.9 }}>{m.right}</span>
             </div>
           </div>
         ))}

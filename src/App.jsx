@@ -6,7 +6,7 @@ import SectorTable from './components/SectorTable';
 import ThemeTracker from './components/ThemeTracker';
 import LeadersView from './components/LeadersView';
 import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS } from './data/stockUniverse';
-import { fetchAllMarketData, getLeaders } from './services/marketData';
+import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
 import './index.css';
 
 const REFRESH_SECS = 90;
@@ -21,7 +21,7 @@ function RefreshBadge({ countdown, lastUpdated, justRefreshed, loading }) {
     <div className="flex items-center gap-2">
       <div className="relative w-6 h-6 flex-shrink-0">
         <svg className="w-6 h-6 -rotate-90" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="#1a2540" strokeWidth="2.5" />
+          <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border)" strokeWidth="2.5" />
           <circle
             cx="12" cy="12" r="9" fill="none"
             stroke={loading ? '#f59e0b' : justRefreshed ? '#34d399' : '#3b82f6'}
@@ -31,7 +31,7 @@ function RefreshBadge({ countdown, lastUpdated, justRefreshed, loading }) {
             style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-gray-500 font-mono" style={{ fontSize: '7px' }}>
+        <span className="absolute inset-0 flex items-center justify-center font-mono" style={{ fontSize: '7px', color: 'var(--text-muted)' }}>
           {loading ? '…' : `${countdown}s`}
         </span>
       </div>
@@ -39,7 +39,7 @@ function RefreshBadge({ countdown, lastUpdated, justRefreshed, loading }) {
         <span className={`text-xs font-mono transition-colors ${loading ? 'text-amber-400' : justRefreshed ? 'text-emerald-400' : 'text-gray-500'}`}>
           {loading ? 'Fetching…' : justRefreshed ? '✓ Updated' : formatTime(lastUpdated)}
         </span>
-        <span className="text-gray-700 font-mono" style={{ fontSize: '10px' }}>last update</span>
+        <span className="font-mono" style={{ fontSize: '10px', color: 'var(--text-faint)' }}>last update</span>
       </div>
     </div>
   );
@@ -75,7 +75,9 @@ export default function App() {
   const [view, setView] = useState('dashboard');
   const [selectedName, setSelectedName] = useState('');
   const [leaders, setLeaders] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [mobileTab, setMobileTab] = useState('breadth');
+  const [theme, setTheme] = useState(() => localStorage.getItem('mp-theme') || 'dark');
 
   // Live market data
   const [marketData, setMarketData] = useState(null);
@@ -85,6 +87,16 @@ export default function App() {
   const [countdown, setCountdown] = useState(REFRESH_SECS);
   const [justRefreshed, setJustRefreshed] = useState(false);
   const stocksByTickerRef = useRef({});
+
+  // Apply theme class to body and persist to localStorage
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light');
+    } else {
+      document.body.classList.remove('light');
+    }
+    localStorage.setItem('mp-theme', theme);
+  }, [theme]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -120,11 +132,19 @@ export default function App() {
     return () => clearInterval(id);
   }, [loadData]);
 
-  const handleDrillDown = useCallback((name) => {
-    const stocks = getLeaders(name, SECTOR_STOCKS, THEME_STOCKS, stocksByTickerRef.current);
-    setLeaders(stocks);
+  const handleDrillDown = useCallback(async (name) => {
+    const baseStocks = getLeaders(name, SECTOR_STOCKS, THEME_STOCKS, stocksByTickerRef.current);
+    setLeaders(baseStocks);
     setSelectedName(name);
     setView('leaders');
+    // Enrich with history in background
+    setHistoryLoading(true);
+    try {
+      const enriched = await enrichWithHistory(baseStocks);
+      setLeaders(enriched);
+    } finally {
+      setHistoryLoading(false);
+    }
   }, []);
 
   const handleBreadthFilter = useCallback((filterKey, filterLabel) => {
@@ -135,19 +155,19 @@ export default function App() {
   }, []);
 
   if (view === 'leaders') {
-    return <LeadersView name={selectedName} stocks={leaders} onBack={() => setView('dashboard')} />;
+    return <LeadersView name={selectedName} stocks={leaders} onBack={() => setView('dashboard')} historyLoading={historyLoading} />;
   }
 
   // Loading skeleton
   if (loading && !marketData) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#070b14' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
         <div className="text-center">
           <div className="text-2xl font-bold font-mono mb-3">
             <span className="text-blue-500">▲ MARKET</span>
             <span className="text-pink-500">PULSE</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-500 text-sm">
+          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
             <svg className="animate-spin w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
@@ -169,33 +189,43 @@ export default function App() {
   const { breadth, sectorData, stageDist, stageHistory, themeData } = marketData || {};
 
   return (
-    <div className="min-h-screen" style={{ background: '#070b14' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* ── Header ── */}
-      <header className="border-b sticky top-0 z-20" style={{ background: '#070b14', borderColor: '#1a2540' }}>
+      <header className="border-b sticky top-0 z-20" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
         <div className="max-w-screen-2xl mx-auto px-3 sm:px-5 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <span className="text-base sm:text-lg font-bold tracking-tight font-mono whitespace-nowrap">
               <span className="text-blue-500">▲ MARKET</span>
               <span className="text-pink-500">PULSE</span>
             </span>
-            <span className="hidden sm:block text-xs text-gray-600 border-l border-[#1a2540] pl-3 font-mono">
+            <span className="hidden sm:block text-xs border-l pl-3 font-mono" style={{ color: 'var(--text-faint)', borderColor: 'var(--border)' }}>
               US EQUITY · LIVE DATA
             </span>
           </div>
-          <RefreshBadge
-            countdown={countdown}
-            lastUpdated={lastUpdated}
-            justRefreshed={justRefreshed}
-            loading={loading}
-          />
+          <div className="flex items-center gap-3">
+            {/* Theme toggle */}
+            <button
+              className="theme-btn"
+              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? '☀ Light' : '☾ Dark'}
+            </button>
+            <RefreshBadge
+              countdown={countdown}
+              lastUpdated={lastUpdated}
+              justRefreshed={justRefreshed}
+              loading={loading}
+            />
+          </div>
         </div>
         {/* Mobile tabs */}
-        <div className="flex sm:hidden border-t" style={{ borderColor: '#1a2540' }}>
+        <div className="flex sm:hidden border-t" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(tab => (
             <button key={tab.key} onClick={() => setMobileTab(tab.key)}
               className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                mobileTab === tab.key ? 'text-blue-400 border-b-2 border-blue-500' : 'text-gray-500'
-              }`}>
+                mobileTab === tab.key ? 'text-blue-400 border-b-2 border-blue-500' : ''
+              }`}
+              style={{ color: mobileTab === tab.key ? undefined : 'var(--text-muted)' }}>
               {tab.label}
             </button>
           ))}
@@ -221,7 +251,7 @@ export default function App() {
           </div>
           <div className="lg:col-span-3">
             {stageDist && stageHistory && (
-              <StageOverview distribution={stageDist} history={stageHistory} />
+              <StageOverview distribution={stageDist} history={stageHistory} theme={theme} />
             )}
           </div>
         </div>
@@ -230,10 +260,10 @@ export default function App() {
             {sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
           </div>
           <div className="xl:col-span-2">
-            {themeData && <ThemeTracker themes={themeData} onThemeClick={handleDrillDown} />}
+            {themeData && <ThemeTracker themes={themeData} onThemeClick={handleDrillDown} theme={theme} />}
           </div>
         </div>
-        <p className="text-center text-xs text-gray-800 font-mono mt-4 pb-4">
+        <p className="text-center text-xs font-mono mt-4 pb-4" style={{ color: 'var(--text-faint)' }}>
           Live data via Yahoo Finance · Weinstein Stage Method · S2: Price &gt; 50SMA &gt; 200SMA · S4: Price &lt; 50SMA &lt; 200SMA
         </p>
       </main>
@@ -242,10 +272,10 @@ export default function App() {
       <div className="sm:hidden px-3 py-3">
         {mobileTab === 'breadth' && breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
         {mobileTab === 'stage' && stageDist && stageHistory && (
-          <StageOverview distribution={stageDist} history={stageHistory} />
+          <StageOverview distribution={stageDist} history={stageHistory} theme={theme} />
         )}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
-        {mobileTab === 'themes' && themeData && <ThemeTracker themes={themeData} onThemeClick={handleDrillDown} />}
+        {mobileTab === 'themes' && themeData && <ThemeTracker themes={themeData} onThemeClick={handleDrillDown} theme={theme} />}
       </div>
     </div>
   );

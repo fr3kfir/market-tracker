@@ -40,34 +40,41 @@ export default function SectorTable({ sectors, onSectorClick }) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs min-w-[480px]">
           <thead>
-            <tr className="border-b border-[#0f1828]">
-              <th className="text-left pb-2 pr-3 text-gray-600 font-medium uppercase tracking-wider">Sector</th>
-              <th className="text-left pb-2 pr-3 text-gray-600 font-medium uppercase tracking-wider">Distribution</th>
-              <th className="text-center pb-2 px-1 text-gray-600 font-medium uppercase tracking-wider">S1</th>
-              <th className="text-center pb-2 px-1 text-gray-600 font-medium uppercase tracking-wider">S2</th>
-              <th className="text-center pb-2 px-1 text-gray-600 font-medium uppercase tracking-wider">S3</th>
-              <th className="text-center pb-2 px-1 text-gray-600 font-medium uppercase tracking-wider">S4</th>
-              <th className="text-left pb-2 pl-2 text-gray-600 font-medium uppercase tracking-wider">Health</th>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <th className="text-left pb-2 pr-3 font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sector</th>
+              <th className="text-left pb-2 pr-3 font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Distribution</th>
+              <th className="text-center pb-2 px-1 font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>S1</th>
+              <th className="text-center pb-2 px-1 font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>S2</th>
+              <th className="text-center pb-2 px-1 font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>S3</th>
+              <th className="text-center pb-2 px-1 font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>S4</th>
+              <th className="text-left pb-2 pl-2 font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Health</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#0f1828]">
+          <tbody style={{ borderTop: 'none' }}>
             {sectors.map((row) => {
               const count = SECTOR_COUNTS[row.sector] || '—';
               return (
-                <tr key={row.sector} className="hover:bg-[#111e35] transition-colors group">
+                <tr
+                  key={row.sector}
+                  className="transition-colors group"
+                  style={{ borderBottom: '1px solid var(--border)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.06)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
                   <td className="py-2.5 pr-3">
                     <button
                       onClick={() => onSectorClick(row.sector)}
-                      className="text-left text-slate-300 hover:text-sky-400 group-hover:text-sky-400 transition-colors font-medium"
+                      className="text-left hover:text-sky-400 group-hover:text-sky-400 transition-colors font-medium"
+                      style={{ color: 'var(--text)' }}
                     >
                       {row.sector}
-                      <span className="text-gray-600 font-normal ml-1">({count})</span>
+                      <span className="font-normal ml-1" style={{ color: 'var(--text-faint)' }}>({count})</span>
                     </button>
                   </td>
                   <td className="py-2.5 pr-3">
                     <MiniBar s1={row.s1} s2={row.s2} s3={row.s3} s4={row.s4} />
                   </td>
-                  <td className="py-2.5 px-1 text-center font-mono text-gray-500">{row.s1}%</td>
+                  <td className="py-2.5 px-1 text-center font-mono" style={{ color: 'var(--text-muted)' }}>{row.s1}%</td>
                   <td className="py-2.5 px-1 text-center font-mono text-blue-400">{row.s2}%</td>
                   <td className="py-2.5 px-1 text-center font-mono text-amber-400">{row.s3}%</td>
                   <td className="py-2.5 px-1 text-center font-mono text-pink-400">{row.s4}%</td>
