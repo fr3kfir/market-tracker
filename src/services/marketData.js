@@ -177,12 +177,14 @@ function buildStageHistory(stageDist) {
 // ── Main fetch function — call this on app load and every refresh ──────
 export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeEtfs) {
   const allSymbols = [...new Set(Object.values(sectorStocksMap).flat())];
+  const themeSymbols = [...new Set(Object.values(themeStocksMap).flat())];
+  const allUniqueStocks = [...new Set([...allSymbols, ...themeSymbols])];
   const etfSymbols = Object.values(themeEtfs);
   const themes = Object.keys(themeStocksMap);
 
-  // Parallel fetch: stock quotes + ETF history
+  // Parallel fetch: all stocks (sectors + themes) + ETF history
   const [quotes, history] = await Promise.all([
-    fetchQuotes([...allSymbols, ...etfSymbols]),
+    fetchQuotes([...allUniqueStocks, ...etfSymbols]),
     fetchHistory(etfSymbols, '6mo'),
   ]);
 

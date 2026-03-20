@@ -17,29 +17,46 @@ function formatTime(d) {
 
 function RefreshBadge({ countdown, lastUpdated, justRefreshed, loading }) {
   const pct = ((REFRESH_SECS - countdown) / REFRESH_SECS) * 100;
+  const accent = loading ? '#f59e0b' : justRefreshed ? '#34d399' : '#3b82f6';
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative w-6 h-6 flex-shrink-0">
-        <svg className="w-6 h-6 -rotate-90" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="var(--border)" strokeWidth="2.5" />
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: 'var(--bg-panel)',
+      border: `1px solid var(--border)`,
+      borderRadius: 10, padding: '5px 10px',
+    }}>
+      {/* Circular progress ring */}
+      <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
+        <svg width="32" height="32" style={{ transform: 'rotate(-90deg)' }} viewBox="0 0 32 32">
+          <circle cx="16" cy="16" r="13" fill="none" stroke="var(--border)" strokeWidth="3" />
           <circle
-            cx="12" cy="12" r="9" fill="none"
-            stroke={loading ? '#f59e0b' : justRefreshed ? '#34d399' : '#3b82f6'}
-            strokeWidth="2.5" strokeLinecap="round"
-            strokeDasharray={`${2 * Math.PI * 9}`}
-            strokeDashoffset={`${2 * Math.PI * 9 * (1 - pct / 100)}`}
+            cx="16" cy="16" r="13" fill="none"
+            stroke={accent}
+            strokeWidth="3" strokeLinecap="round"
+            strokeDasharray={`${2 * Math.PI * 13}`}
+            strokeDashoffset={`${2 * Math.PI * 13 * (1 - pct / 100)}`}
             style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center font-mono" style={{ fontSize: '7px', color: 'var(--text-muted)' }}>
-          {loading ? '…' : `${countdown}s`}
+        <span style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'monospace', fontSize: 9, color: accent, fontWeight: 700,
+        }}>
+          {loading ? '…' : `${countdown}`}
         </span>
       </div>
-      <div className="hidden sm:flex flex-col items-end leading-tight">
-        <span className={`text-xs font-mono transition-colors ${loading ? 'text-amber-400' : justRefreshed ? 'text-emerald-400' : 'text-gray-500'}`}>
+      {/* Text info */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.3 }}>
+        <span style={{
+          fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
+          color: loading ? '#f59e0b' : justRefreshed ? '#34d399' : 'var(--text)',
+          transition: 'color 0.3s',
+        }}>
           {loading ? 'Fetching…' : justRefreshed ? '✓ Updated' : formatTime(lastUpdated)}
         </span>
-        <span className="font-mono" style={{ fontSize: '10px', color: 'var(--text-faint)' }}>last update</span>
+        <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>
+          {loading ? 'loading data' : `next in ${countdown}s`}
+        </span>
       </div>
     </div>
   );
