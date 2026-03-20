@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #0d0f14;
+  color: #c8ccd8;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Panel base */
+.panel {
+  background: #111318;
+  border: 1px solid #1e2130;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6b7280;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #1e2130;
+}
+
+/* Gauge bars */
+.bar-track {
+  height: 5px;
+  background: #1e2130;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.bar-fill-pink {
+  height: 100%;
+  border-radius: 99px;
+  background: #e879f9;
+  transition: width 0.6s ease;
+}
+
+.bar-fill-blue {
+  height: 100%;
+  border-radius: 99px;
+  background: #3b82f6;
+  transition: width 0.6s ease;
+}
+
+/* Thin scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0f14;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2d3a;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3d4a;
+}
