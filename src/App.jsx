@@ -9,7 +9,7 @@ import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS } from './data/stockUniverse';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
 import './index.css';
 
-const REFRESH_SECS = 90;
+const REFRESH_SECS = 5;
 
 function formatTime(d) {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
