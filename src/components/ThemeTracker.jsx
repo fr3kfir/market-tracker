@@ -42,7 +42,7 @@ function PerfBar({ val, maxAbs, color }) {
 }
 
 export default function ThemeTracker({ themes, onThemeClick }) {
-  const [sortTf, setSortTf] = useState('m1');
+  const [sortTf, setSortTf] = useState('d1');
 
   const sorted = [...themes].sort((a, b) => (b[sortTf] || 0) - (a[sortTf] || 0));
 

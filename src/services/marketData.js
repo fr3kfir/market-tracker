@@ -24,6 +24,7 @@ async function fetchQuotes(symbols) {
 async function fetchHistory(symbols, range = '6mo') {
   try {
     const r = await fetch(`/api/history?symbols=${symbols.join(',')}&range=${range}`);
+    if (!r.ok) return {};
     return await r.json();
   } catch {
     return {};
@@ -66,6 +67,10 @@ function processQuote(q, rsRatings) {
   const volBuzz = Math.round((q.regularMarketVolume / avgVol) * 10) / 10;
   const distSma50 = sma50 ? Math.round(((price - sma50) / sma50) * 1000) / 10 : 0;
 
+  const high52 = q.fiftyTwoWeekHigh;
+  const low52  = q.fiftyTwoWeekLow;
+  const distSma52wHigh = high52 ? Math.round(((price - high52) / high52) * 1000) / 10 : undefined;
+
   return {
     ticker: q.symbol,
     name: q.shortName || q.symbol,
@@ -74,9 +79,10 @@ function processQuote(q, rsRatings) {
     rs: rsRatings[q.symbol] || 50,
     volBuzz: Math.max(0.1, volBuzz),
     distSma50,
+    distSma52wHigh,
     stage,
-    high52: q.fiftyTwoWeekHigh,
-    low52: q.fiftyTwoWeekLow,
+    high52,
+    low52,
     open: q.regularMarketOpen,
   };
 }
@@ -87,8 +93,8 @@ function calcBreadth(stocks) {
   const advancing = stocks.filter(s => s.change > 0).length;
   const declining = stocks.filter(s => s.change < 0).length;
   const unchanged = total - advancing - declining;
-  const newHighs = stocks.filter(s => s.price >= s.high52 * 0.98).length;
-  const newLows = stocks.filter(s => s.price <= s.low52 * 1.02).length;
+  const newHighs = stocks.filter(s => s.high52 && s.distSma52wHigh !== undefined && s.distSma52wHigh >= -3).length;
+  const newLows  = stocks.filter(s => s.low52  && s.price && s.low52 > 0 && ((s.price - s.low52) / s.low52) * 100 <= 3).length;
   const upFromOpen = stocks.filter(s => s.price > s.open).length;
   const downFromOpen = stocks.filter(s => s.price <= s.open).length;
   const up4 = stocks.filter(s => s.change >= 4).length;
@@ -174,18 +180,86 @@ function buildStageHistory(stageDist) {
   });
 }
 
+// ── ETF history cache (fetch once, reuse for 10 minutes) ─────────────
+let _historyCache = null;
+let _historyCacheTime = 0;
+const HISTORY_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+async function getCachedHistory(etfSymbols) {
+  const now = Date.now();
+  if (_historyCache && (now - _historyCacheTime) < HISTORY_TTL_MS) {
+    return _historyCache;
+  }
+  const history = await fetchHistory(etfSymbols, '1y');
+  _historyCache = history;
+  _historyCacheTime = now;
+  return history;
+}
+
+// ── Hot Theme Performance (granular, stock-avg d1 + ETF history) ──────
+function calcHotThemeData(hotThemes, stocksByTicker, historyMap) {
+  return hotThemes.map(theme => {
+    // d1: real-time average change of constituent stocks
+    const stocks = theme.tickers.map(t => stocksByTicker[t]).filter(Boolean);
+    const d1 = stocks.length > 0
+      ? Math.round(stocks.reduce((s, st) => s + st.change, 0) / stocks.length * 10) / 10
+      : 0;
+
+    // w1/m1/m3/ytd from proxy ETF history
+    const hist = historyMap[theme.etf];
+    if (!hist || !hist.closes || hist.closes.length < 5) {
+      return { theme: theme.name, d1, w1: 0, m1: 0, m3: 0, ytd: 0 };
+    }
+    const closes = hist.closes.filter(Boolean);
+    const last = closes[closes.length - 1];
+    const pct = (from, to) => from ? Math.round(((to - from) / from) * 1000) / 10 : 0;
+    const w1  = pct(closes[Math.max(0, closes.length - 6)],  last);
+    const m1  = pct(closes[Math.max(0, closes.length - 22)], last);
+    const m3  = pct(closes[Math.max(0, closes.length - 66)], last);
+    const timestamps = hist.timestamps || [];
+    const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
+    const ytdIdx = timestamps.findIndex(t => t >= yearStart);
+    const ytdPrice = ytdIdx >= 0 ? closes[ytdIdx] : closes[0];
+    const ytd = pct(ytdPrice, last);
+
+    return { theme: theme.name, d1, w1, m1, m3, ytd };
+  });
+}
+
+// ── Industry Group Rankings ────────────────────────────────────────────
+export function calcIndustryGroupData(industryGroups, stocksByTicker) {
+  const groups = industryGroups.map(group => {
+    const stocks = group.tickers.map(t => stocksByTicker[t]).filter(Boolean);
+    if (stocks.length < 2) return null;
+    const avgRS = Math.round(stocks.reduce((s, st) => s + st.rs, 0) / stocks.length);
+    const avgChange = Math.round(stocks.reduce((s, st) => s + st.change, 0) / stocks.length * 10) / 10;
+    const leaders = [...stocks].sort((a, b) => b.rs - a.rs).slice(0, 5);
+    return { name: group.name, sector: group.sector, avgRS, change: avgChange, leaders, stockCount: stocks.length };
+  }).filter(Boolean);
+
+  // Rank by avgRS descending
+  const sorted = [...groups].sort((a, b) => b.avgRS - a.avgRS);
+  sorted.forEach((g, i) => { g.rank = i + 1; });
+  return sorted;
+}
+
 // ── Main fetch function — call this on app load and every refresh ──────
-export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeEtfs) {
+export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeEtfs, industryGroups = [], hotThemes = []) {
   const allSymbols = [...new Set(Object.values(sectorStocksMap).flat())];
   const themeSymbols = [...new Set(Object.values(themeStocksMap).flat())];
-  const allUniqueStocks = [...new Set([...allSymbols, ...themeSymbols])];
-  const etfSymbols = Object.values(themeEtfs);
+  const industrySymbols = [...new Set(industryGroups.flatMap(g => g.tickers))];
+  const allUniqueStocks = [...new Set([...allSymbols, ...themeSymbols, ...industrySymbols])];
+
+  const themeEtfSymbols = Object.values(themeEtfs);
+  const hotThemeEtfSymbols = [...new Set(hotThemes.map(t => t.etf))];
+  const allEtfSymbols = [...new Set([...themeEtfSymbols, ...hotThemeEtfSymbols])];
+
   const themes = Object.keys(themeStocksMap);
 
-  // Parallel fetch: all stocks (sectors + themes) + ETF history
+  // Quotes refresh every cycle; history is cached for 10 minutes
   const [quotes, history] = await Promise.all([
-    fetchQuotes([...allUniqueStocks, ...etfSymbols]),
-    fetchHistory(etfSymbols, '6mo'),
+    fetchQuotes([...allUniqueStocks, ...allEtfSymbols]),
+    getCachedHistory(allEtfSymbols),
   ]);
 
   if (!quotes.length) throw new Error('No data returned from API');
@@ -200,14 +274,17 @@ export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeE
   const stageDist = calcOverallStages(sectorStocks);
   const stageHistory = buildStageHistory(stageDist);
 
-  // Build theme data and patch d1 from ETF quote change
+  // Build legacy theme data (kept for sector drill-down)
   const themeData = themes.map(theme => {
     const perf = calcThemePerf(theme, themeEtfs[theme], history);
     perf.d1 = stocksByTicker[themeEtfs[theme]]?.change || 0;
     return perf;
   });
 
-  return { breadth, sectorData, stageDist, stageHistory, themeData, stocksByTicker };
+  const industryGroupData = calcIndustryGroupData(industryGroups, stocksByTicker);
+  const hotThemeData = calcHotThemeData(hotThemes, stocksByTicker, history);
+
+  return { breadth, sectorData, stageDist, stageHistory, themeData, industryGroupData, stocksByTicker, hotThemeData };
 }
 
 // ── Get leaders for a sector or theme ─────────────────────────────────

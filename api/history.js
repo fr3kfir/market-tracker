@@ -1,19 +1,13 @@
-// Vercel serverless function — Yahoo Finance history proxy
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+// Vercel serverless function — Yahoo Finance history via yahoo-finance2
+import yahooFinance from 'yahoo-finance2';
 
-async function getAuth() {
-  const r1 = await fetch('https://fc.yahoo.com', {
-    redirect: 'follow',
-    headers: { 'User-Agent': UA }
-  });
-  const raw = r1.headers.getSetCookie?.() || [];
-  const cookieStr = raw.map(c => c.split(';')[0]).join('; ');
-
-  const r2 = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
-    headers: { Cookie: cookieStr, 'User-Agent': UA }
-  });
-  const crumb = await r2.text();
-  return { cookieStr, crumb };
+function rangeToDate(range) {
+  const d = new Date();
+  if (range === '1y')  d.setFullYear(d.getFullYear() - 1);
+  else if (range === '6mo') d.setMonth(d.getMonth() - 6);
+  else if (range === '3mo') d.setMonth(d.getMonth() - 3);
+  else d.setFullYear(d.getFullYear() - 1);
+  return d;
 }
 
 export default async function handler(req, res) {
@@ -26,18 +20,16 @@ export default async function handler(req, res) {
   if (!symbols) return res.status(400).json({ error: 'symbols required' });
 
   try {
-    const { cookieStr, crumb } = await getAuth();
-    const yfHeaders = { 'User-Agent': UA, Cookie: cookieStr, Accept: 'application/json' };
+    const list = symbols.split(',').map(s => s.trim()).filter(Boolean);
+    const period1 = rangeToDate(range);
 
-    const list = symbols.split(',').map(s => s.trim());
     const results = await Promise.allSettled(
       list.map(async (sym) => {
-        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}&crumb=${encodeURIComponent(crumb)}`;
-        const r = await fetch(url, { headers: yfHeaders });
-        const data = await r.json();
-        const result = data?.chart?.result?.[0];
-        if (!result) return [sym, null];
-        return [sym, { closes: result.indicators.quote[0].close, timestamps: result.timestamp }];
+        const chart = await yahooFinance.chart(sym, { period1, interval: '1d' }, { validateResult: false });
+        if (!chart?.quotes?.length) return [sym, null];
+        const closes = chart.quotes.map(q => q.close);
+        const timestamps = chart.quotes.map(q => Math.floor(new Date(q.date).getTime() / 1000));
+        return [sym, { closes, timestamps }];
       })
     );
 

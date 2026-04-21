@@ -1,5 +1,6 @@
 export default function MarketBreadth({ data, onFilterClick }) {
-  const nhPct = Math.round((data.newHighs / (data.newHighs + data.newLows)) * 100);
+  const nhTotal = (data.newHighs || 0) + (data.newLows || 0);
+  const nhPct = nhTotal > 0 ? Math.round((data.newHighs / nhTotal) * 100) : 50;
 
   const metrics = [
     {

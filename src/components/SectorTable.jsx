@@ -6,6 +6,20 @@ const HEALTH = {
   Weak: { text: 'text-pink-400', label: 'Weak' },
 };
 
+const SECTOR_ETFS = {
+  'Technology':               'XLK',
+  'Energy':                   'XLE',
+  'Healthcare':               'XLV',
+  'Financials':               'XLF',
+  'Consumer Discretionary':   'XLY',
+  'Industrials':              'XLI',
+  'Materials':                'XLB',
+  'Utilities':                'XLU',
+  'Real Estate':              'XLRE',
+  'Communication Services':   'XLC',
+  'Consumer Staples':         'XLP',
+};
+
 // Approximate stock counts per sector
 const SECTOR_COUNTS = {
   'Technology': 736,
@@ -68,6 +82,11 @@ export default function SectorTable({ sectors, onSectorClick }) {
                       style={{ color: 'var(--text)' }}
                     >
                       {row.sector}
+                      {SECTOR_ETFS[row.sector] && (
+                        <span className="font-mono ml-2" style={{ fontSize: 10, color: '#60a5fa', background: 'rgba(59,130,246,0.12)', padding: '1px 5px', borderRadius: 4 }}>
+                          {SECTOR_ETFS[row.sector]}
+                        </span>
+                      )}
                       <span className="font-normal ml-1" style={{ color: 'var(--text-faint)' }}>({count})</span>
                     </button>
                   </td>

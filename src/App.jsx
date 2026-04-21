@@ -5,7 +5,12 @@ import StageOverview from './components/StageOverview';
 import SectorTable from './components/SectorTable';
 import ThemeTracker from './components/ThemeTracker';
 import LeadersView from './components/LeadersView';
-import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS } from './data/stockUniverse';
+import IndustryGroups from './components/IndustryGroups';
+import ArielDashboard from './components/ArielDashboard';
+import StockSearch from './components/StockSearch';
+import ArielBreadthTable from './components/ArielBreadthTable';
+import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from './data/stockUniverse';
+import { fetchArielBreadthData } from './services/arielBreadth';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
 import './index.css';
 
@@ -63,10 +68,14 @@ function RefreshBadge({ countdown, lastUpdated, justRefreshed, loading }) {
 }
 
 const TABS = [
+  { key: 'routine', label: '⚡ Routine' },
   { key: 'breadth', label: 'Breadth' },
-  { key: 'stage', label: 'Stages' },
+  { key: 'ariel',   label: '📊 Ariel' },
+  { key: 'stage',   label: 'Stages' },
+  { key: 'groups',  label: 'Groups' },
   { key: 'sectors', label: 'Sectors' },
-  { key: 'themes', label: 'Themes' },
+  { key: 'themes',  label: 'Themes' },
+  { key: 'search',  label: '🔍 Search' },
 ];
 
 // Filter stocks from stocksByTicker map by breadth criterion
@@ -93,8 +102,13 @@ export default function App() {
   const [selectedName, setSelectedName] = useState('');
   const [leaders, setLeaders] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [mobileTab, setMobileTab] = useState('breadth');
+  const [mobileTab, setMobileTab] = useState('routine');
+  const [desktopTab, setDesktopTab] = useState('routine');
   const [theme, setTheme] = useState(() => localStorage.getItem('mp-theme') || 'dark');
+
+  // Ariel Breadth (loaded on demand)
+  const [arielRows, setArielRows] = useState(null);
+  const [arielLoading, setArielLoading] = useState(false);
 
   // Live market data
   const [marketData, setMarketData] = useState(null);
@@ -119,7 +133,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAllMarketData(SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS);
+      const data = await fetchAllMarketData(SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES);
       stocksByTickerRef.current = data.stocksByTicker;
       setMarketData(data);
       setLastUpdated(new Date());
@@ -149,12 +163,65 @@ export default function App() {
     return () => clearInterval(id);
   }, [loadData]);
 
+  const loadArielBreadth = useCallback(async () => {
+    if (arielRows || arielLoading) return;
+    setArielLoading(true);
+    try {
+      const allSyms = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])];
+      const rows = await fetchArielBreadthData(allSyms);
+      setArielRows(rows);
+    } catch (e) {
+      console.error('Ariel Breadth error:', e);
+    } finally {
+      setArielLoading(false);
+    }
+  }, [arielRows, arielLoading]);
+
+  const handleTabChange = useCallback((key, setter) => {
+    setter(key);
+    if (key === 'ariel') loadArielBreadth();
+  }, [loadArielBreadth]);
+
+  const handleGroupClick = useCallback(async (group) => {
+    const tickers = INDUSTRY_GROUPS.find(g => g.name === group.name)?.tickers || [];
+    const baseStocks = tickers.map(t => stocksByTickerRef.current[t]).filter(Boolean).sort((a, b) => b.rs - a.rs);
+    setLeaders(baseStocks);
+    setSelectedName(group.name);
+    setView('leaders');
+    setHistoryLoading(true);
+    try {
+      const enriched = await enrichWithHistory(baseStocks);
+      setLeaders(enriched);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   const handleDrillDown = useCallback(async (name) => {
     const baseStocks = getLeaders(name, SECTOR_STOCKS, THEME_STOCKS, stocksByTickerRef.current);
     setLeaders(baseStocks);
     setSelectedName(name);
     setView('leaders');
     // Enrich with history in background
+    setHistoryLoading(true);
+    try {
+      const enriched = await enrichWithHistory(baseStocks);
+      setLeaders(enriched);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const handleHotThemeClick = useCallback(async (themeName) => {
+    const theme = HOT_THEMES.find(t => t.name === themeName);
+    if (!theme) return;
+    const baseStocks = theme.tickers
+      .map(t => stocksByTickerRef.current[t])
+      .filter(Boolean)
+      .sort((a, b) => b.rs - a.rs);
+    setLeaders(baseStocks);
+    setSelectedName(themeName);
+    setView('leaders');
     setHistoryLoading(true);
     try {
       const enriched = await enrichWithHistory(baseStocks);
@@ -203,7 +270,7 @@ export default function App() {
     );
   }
 
-  const { breadth, sectorData, stageDist, stageHistory, themeData } = marketData || {};
+  const { breadth, sectorData, stageDist, stageHistory, themeData, industryGroupData, stocksByTicker, hotThemeData } = marketData || {};
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -235,10 +302,25 @@ export default function App() {
             />
           </div>
         </div>
+        {/* Desktop tabs */}
+        <div className="hidden sm:flex border-t gap-1 px-4" style={{ borderColor: 'var(--border)' }}>
+          {TABS.map(tab => (
+            <button key={tab.key} onClick={() => handleTabChange(tab.key, setDesktopTab)}
+              style={{
+                padding: '8px 14px', fontSize: 12, fontWeight: desktopTab === tab.key ? 700 : 500,
+                color: desktopTab === tab.key ? '#3b82f6' : 'var(--text-muted)',
+                borderBottom: desktopTab === tab.key ? '2px solid #3b82f6' : '2px solid transparent',
+                background: 'transparent', cursor: 'pointer', transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
         {/* Mobile tabs */}
         <div className="flex sm:hidden border-t" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(tab => (
-            <button key={tab.key} onClick={() => setMobileTab(tab.key)}
+            <button key={tab.key} onClick={() => handleTabChange(tab.key, setMobileTab)}
               className={`flex-1 py-2 text-xs font-medium transition-colors ${
                 mobileTab === tab.key ? 'text-blue-400 border-b-2 border-blue-500' : ''
               }`}
@@ -262,24 +344,44 @@ export default function App() {
 
       {/* ── Desktop layout ── */}
       <main className="hidden sm:block max-w-screen-2xl mx-auto px-3 sm:px-5 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-3">
-          <div className="lg:col-span-2">
-            {breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
+        {desktopTab === 'routine' && breadth && stageDist && industryGroupData && (
+          <ArielDashboard breadth={breadth} stageDist={stageDist} industryGroupData={industryGroupData} stocksByTicker={stocksByTicker || {}} onGroupClick={handleGroupClick} />
+        )}
+        {desktopTab === 'ariel' && (
+          <ArielBreadthTable rows={arielRows} breadth={breadth} loading={arielLoading} />
+        )}
+        {desktopTab === 'breadth' && (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+            <div className="lg:col-span-2">
+              {breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
+            </div>
+            <div className="lg:col-span-3">
+              {stageDist && stageHistory && <StageOverview distribution={stageDist} history={stageHistory} theme={theme} />}
+            </div>
           </div>
-          <div className="lg:col-span-3">
-            {stageDist && stageHistory && (
-              <StageOverview distribution={stageDist} history={stageHistory} theme={theme} />
-            )}
+        )}
+        {desktopTab === 'stage' && stageDist && stageHistory && (
+          <StageOverview distribution={stageDist} history={stageHistory} theme={theme} />
+        )}
+        {desktopTab === 'groups' && industryGroupData && (
+          <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />
+        )}
+        {desktopTab === 'sectors' && (
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
+            <div className="xl:col-span-3">
+              {sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
+            </div>
+            <div className="xl:col-span-2">
+              {hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
-          <div className="xl:col-span-3">
-            {sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
-          </div>
-          <div className="xl:col-span-2">
-            {themeData && <ThemeTracker themes={themeData} onThemeClick={handleDrillDown} theme={theme} />}
-          </div>
-        </div>
+        )}
+        {desktopTab === 'themes' && hotThemeData && (
+          <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
+        )}
+        {desktopTab === 'search' && (
+          <StockSearch stocksByTicker={stocksByTicker || {}} />
+        )}
         <p className="text-center text-xs font-mono mt-4 pb-4" style={{ color: 'var(--text-faint)' }}>
           Live data via Yahoo Finance · Weinstein Stage Method · S2: Price &gt; 50SMA &gt; 200SMA · S4: Price &lt; 50SMA &lt; 200SMA
         </p>
@@ -287,12 +389,16 @@ export default function App() {
 
       {/* ── Mobile layout ── */}
       <div className="sm:hidden px-3 py-3">
-        {mobileTab === 'breadth' && breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
-        {mobileTab === 'stage' && stageDist && stageHistory && (
+        {mobileTab === 'routine'  && <ArielDashboard breadth={breadth} stageDist={stageDist} industryGroupData={industryGroupData} stocksByTicker={stocksByTicker || {}} onGroupClick={handleGroupClick} />}
+        {mobileTab === 'ariel'   && <ArielBreadthTable rows={arielRows} breadth={breadth} loading={arielLoading} />}
+        {mobileTab === 'breadth'  && breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
+        {mobileTab === 'stage'   && stageDist && stageHistory && (
           <StageOverview distribution={stageDist} history={stageHistory} theme={theme} />
         )}
+        {mobileTab === 'groups'  && industryGroupData && <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
-        {mobileTab === 'themes' && themeData && <ThemeTracker themes={themeData} onThemeClick={handleDrillDown} theme={theme} />}
+        {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
+        {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}
       </div>
     </div>
   );
