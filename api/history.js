@@ -1,5 +1,7 @@
 // Vercel serverless function — Yahoo Finance history via yahoo-finance2
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+
+const yf = new YahooFinance();
 
 function rangeToDate(range) {
   const d = new Date();
@@ -25,10 +27,10 @@ export default async function handler(req, res) {
 
     const results = await Promise.allSettled(
       list.map(async (sym) => {
-        const chart = await yahooFinance.chart(sym, { period1, interval: '1d' }, { validateResult: false });
+        const chart = await yf.chart(sym, { period1, interval: '1d' }, { validateResult: false });
         if (!chart?.quotes?.length) return [sym, null];
         const closes = chart.quotes.map(q => q.close);
-        const timestamps = chart.quotes.map(q => Math.floor(new Date(q.date).getTime() / 1000));
+        const timestamps = chart.quotes.map(q => Math.floor(q.date.getTime() / 1000));
         return [sym, { closes, timestamps }];
       })
     );
