@@ -42,12 +42,25 @@ export function calcStage(price, sma50, sma200) {
   return 'S1'; // price > sma50 but sma50 < sma200 → early recovery / basing
 }
 
-// ── RS Rating (percentile of 52-week strength vs all stocks) ──────────
+// ── RS Rating (percentile vs all stocks in universe) ──────────────────
+// Combines 52-week range position (60%) with trend above 200-day SMA (40%).
+// This better penalises dead-cat bounces and rewards stocks that are both
+// near highs AND in a sustained uptrend vs. their long-term average.
 function calcRsRatings(quotes) {
   const scores = quotes.map(q => {
-    const range = q.fiftyTwoWeekHigh - q.fiftyTwoWeekLow;
-    if (!range) return { ticker: q.symbol, score: 50 };
-    return { ticker: q.symbol, score: (q.regularMarketPrice - q.fiftyTwoWeekLow) / range };
+    const price  = q.regularMarketPrice;
+    const range  = q.fiftyTwoWeekHigh - q.fiftyTwoWeekLow;
+    const sma200 = q.twoHundredDayAverage;
+
+    // Position within 52-week range (0 = at low, 1 = at high)
+    const pos52 = range > 0 ? (price - q.fiftyTwoWeekLow) / range : 0.5;
+
+    // Distance above/below 200-day SMA, clamped to [-50%, +50%] then normalised 0→1
+    const aboveSma200 = sma200 > 0 ? (price - sma200) / sma200 : 0;
+    const smaScore    = Math.max(0, Math.min(1, aboveSma200 + 0.5));
+
+    const score = pos52 * 0.6 + smaScore * 0.4;
+    return { ticker: q.symbol, score };
   });
   const sorted = [...scores].sort((a, b) => a.score - b.score);
   const ratings = {};

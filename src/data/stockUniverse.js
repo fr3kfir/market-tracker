@@ -13,10 +13,11 @@ export const SECTOR_STOCKS = {
     'CRUS','SWKS','QRVO','NXPI','ADI','MCHP','DIOD','PI','WOLF','ALGM',
     'AEIS','COHR','LITE','VIAV','CIEN','CALX','ADTN','PURE','NTNX','POWI',
     // Networking / Security
-    'ANET','NET','CRWD','PANW','ZS','OKTA','S','CYBR','TENB','QLYS',
+    'ANET','NET','CRWD','PANW','ZS','OKTA','S','CYBR','TENB','QLYS','AKAM',
     // Cloud / SaaS
     'DDOG','SNOW','MDB','TEAM','GTLB','TWLO','CFLT','PD','DBX','BOX',
     'WDAY','HUBS','VEEV','BILL','NCNO','ESTC','ZI','APPF','ASAN','KVYO',
+    'FROG','DT','RNG','FIVE9','WIX','RAMP',
     // AI / Emerging
     'PATH','AI','AMBA','RBRK','APP','TTD','CEVA','HIMX','ATEN',
     // Quantum Computing
@@ -160,12 +161,12 @@ export const SECTOR_STOCKS = {
 
 export const THEME_STOCKS = {
   Software: ['MSFT','CRM','NOW','ORCL','ADBE','INTU','WDAY','CDNS','SNPS','DDOG','SNOW','MDB','HUBS','VEEV','GTLB','BILL','NCNO','ESTC','ZI','APPF'],
-  'Cyber Security': ['PANW','CRWD','FTNT','ZS','S','CYBR','OKTA','CHKP','NET','TENB','QLYS','VRNS','LDOS','SAIC','CACI','LHX','CSCO','RBRK','MNDT','SAIL'],
+  'Cyber Security': ['PANW','CRWD','FTNT','ZS','S','CYBR','OKTA','CHKP','NET','TENB','QLYS','VRNS','LDOS','SAIC','CACI','LHX','CSCO','RBRK','MNDT','SAIL','AKAM'],
   Semiconductors: ['NVDA','AVGO','AMD','QCOM','TXN','AMAT','MU','KLAC','LRCX','MRVL','ON','MPWR','ENTG','CRUS','SWKS','QRVO','ADI','MCHP','NXPI','WOLF'],
   Biotech: ['BIIB','REGN','VRTX','GILD','MRNA','ALNY','INCY','BMRN','SRPT','RARE','ARWR','RXRX','BEAM','EXAS','FOLD','SMMT','IMVT','RVMD','TGTX','RNA'],
   'Clean Energy': ['NEE','ENPH','SEDG','FSLR','BE','PLUG','CWEN','AES','BEP','AMRC','HASI','RUN','ARRY','NOVA','SPWR','CSIQ','MAXN','AZRE','GPRE','CLNE'],
   'AI & Machine Learning': ['NVDA','MSFT','GOOGL','META','AMZN','IBM','PLTR','AI','PATH','AMBA','IONQ','SOUN','RBRK','APP','BBAI','ALAB','ARM','KVYO','ASAN','TTD'],
-  'Cloud Computing': ['AMZN','MSFT','GOOGL','CRM','NOW','SNOW','DDOG','NET','ZS','TWLO','MDB','ESTC','PD','BOX','CFLT','GTLB','PURE','NTNX','HUBS','DBX'],
+  'Cloud Computing': ['AMZN','MSFT','GOOGL','CRM','NOW','SNOW','DDOG','NET','ZS','TWLO','MDB','ESTC','PD','BOX','CFLT','GTLB','PURE','NTNX','HUBS','DBX','FROG','DT','DOCN','RNG'],
   Defense: ['LMT','RTX','NOC','GD','BA','HII','LHX','TDG','HEI','LDOS','SAIC','CACI','BWXT','KTOS','MOOG','DRS','VSE','MRCY','AXON','AVAV'],
   Fintech: ['V','MA','PYPL','SQ','AFRM','SOFI','NU','HOOD','COIN','BILL','FOUR','WEX','FLT','RELY','UPST','LC','OPFI','COOP','PFSI','GHLD'],
   'EV & Battery': ['TSLA','RIVN','LCID','NIO','XPEV','LI','F','GM','ALB','LAC','SQM','LTHM','ALTM','MP','QS','CHPT','BLNK','EVGO'],
@@ -202,9 +203,9 @@ export const INDUSTRY_GROUPS = [
   { name: 'Semis — Power',          sector: 'Technology',             tickers: ['MPWR','ON','WOLF','POWI','SLAB','AEIS','DIOD','IOSP','SITM','ALGM','CAMT','AMKR','VICR','TXN','ADI','NXPI','NVDA','MCHP','INTC'] },
   // ── Technology — Software ──
   { name: 'Software — Enterprise',  sector: 'Technology',             tickers: ['CRM','ORCL','NOW','WDAY','INTU','ADBE','MSFT','IBM','CTSH','EPAM','ACN','SAP','SMAR','APPF','PEGA','DOMO','ANSS','PTC','CDNS','SNPS','MANH','CDAY','TOAD','ALTR','VEEV','HUBS'] },
-  { name: 'Software — Security',    sector: 'Technology',             tickers: ['CRWD','PANW','FTNT','ZS','CYBR','S','OKTA','CHKP','NET','TENB','QLYS','VRNS','RBRK','CSCO','RPD','SAIL','SAIC','LDOS','CACI','CWAN','MNDT','FEYE','SCWX','ISTR','OSPN'] },
-  { name: 'Software — Cloud Infra', sector: 'Technology',             tickers: ['SNOW','MDB','DDOG','TEAM','GTLB','NET','TWLO','CFLT','PD','DBX','BOX','HUBS','ESTC','PURE','NTNX','DOCN','CLDR','FSLY','AMPL','BRZE','SUMO','NCNO','TOST','MNDY'] },
-  { name: 'Software — AI / Data',   sector: 'Technology',             tickers: ['PLTR','AI','PATH','AMBA','RBRK','ANET','KVYO','ASAN','APP','TTD','MGNI','DV','ZETA','UPST','BBAI','SOUN','IONQ','NBIS','QUBT','QBTS','RGTI','MSFT','GOOGL','META','NVDA','IBM'] },
+  { name: 'Software — Security',    sector: 'Technology',             tickers: ['CRWD','PANW','FTNT','ZS','CYBR','S','OKTA','CHKP','NET','TENB','QLYS','VRNS','RBRK','CSCO','RPD','SAIL','SAIC','LDOS','CACI','CWAN','MNDT','FEYE','SCWX','ISTR','OSPN','AKAM'] },
+  { name: 'Software — Cloud Infra', sector: 'Technology',             tickers: ['SNOW','MDB','DDOG','TEAM','GTLB','NET','TWLO','CFLT','PD','DBX','BOX','HUBS','ESTC','PURE','NTNX','DOCN','CLDR','FSLY','AMPL','BRZE','SUMO','NCNO','TOST','MNDY','FROG','DT','RNG','FIVE9','AKAM'] },
+  { name: 'Software — AI / Data',   sector: 'Technology',             tickers: ['PLTR','AI','PATH','AMBA','RBRK','ANET','KVYO','ASAN','APP','TTD','MGNI','DV','ZETA','UPST','BBAI','SOUN','IONQ','NBIS','QUBT','QBTS','RGTI','MSFT','GOOGL','META','NVDA','IBM','DT','RAMP'] },
   { name: 'Software — SMB / Vert.', sector: 'Technology',             tickers: ['BILL','VEEV','ZI','APPF','HUBS','PCOR','MNDY','TOST','TASK','BAND','EVBG','SPSC','PAR','XPEL','ALRM','QTWO','JAMF','SMAR','ACMR','DBTX','AVEYA','PERI','FOUR','NTNX'] },
   { name: 'Hardware — Networking',  sector: 'Technology',             tickers: ['CSCO','ANET','VIAV','CIEN','CALX','LITE','COHR','ADTN','INFN','FFIV','JNPR','EXTR','NTGR','RBBN','CASA','ARLO','SMCI','HPE','DELL','NVDA','MRVL','AVGO'] },
   { name: 'Hardware — Servers',     sector: 'Technology',             tickers: ['DELL','HPE','NTAP','SMCI','PSTG','HPQ','WDC','NTNX','PURE','NVDA','AMD','ALAB','VRT','ARM','AAPL','MSFT','AVGO','MRVL','INTC','QCOM','IBM'] },
