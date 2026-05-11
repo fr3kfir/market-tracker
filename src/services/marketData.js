@@ -65,33 +65,56 @@ function processQuote(q, rsRatings) {
   const stage = calcStage(price, sma50, sma200);
   const avgVol = q.averageDailyVolume3Month || 1;
   const volBuzz = Math.round((q.regularMarketVolume / avgVol) * 10) / 10;
-  const distSma50 = sma50 ? Math.round(((price - sma50) / sma50) * 1000) / 10 : 0;
+  const distSma50  = sma50  ? Math.round(((price - sma50)  / sma50)  * 1000) / 10 : undefined;
+  const distSma200 = sma200 ? Math.round(((price - sma200) / sma200) * 1000) / 10 : undefined;
 
   const high52 = q.fiftyTwoWeekHigh;
   const low52  = q.fiftyTwoWeekLow;
   const distSma52wHigh = high52 ? Math.round(((price - high52) / high52) * 1000) / 10 : undefined;
+  const distSma52wLow  = low52  ? Math.round(((price - low52)  / low52)  * 1000) / 10 : undefined;
 
-  const marketCapB = q.marketCap ? Math.round(q.marketCap / 1e8) / 10 : undefined; // billions, 1 decimal
+  const openPrice = q.regularMarketOpen;
+  const changeFromOpen = openPrice ? Math.round(((price - openPrice) / openPrice) * 1000) / 10 : undefined;
+
+  const marketCapB = q.marketCap       ? Math.round(q.marketCap       / 1e8) / 10 : undefined;
+  const sharesOutB = q.sharesOutstanding ? Math.round(q.sharesOutstanding / 1e8) / 10 : undefined;
+  const floatB     = q.floatShares      ? Math.round(q.floatShares      / 1e8) / 10 : undefined;
+
+  const targetUpside = q.targetMeanPrice && price
+    ? Math.round(((q.targetMeanPrice - price) / price) * 1000) / 10
+    : undefined;
 
   return {
     ticker: q.symbol,
     name: q.shortName || q.symbol,
     price: Math.round(price * 100) / 100,
     change: Math.round((q.regularMarketChangePercent || 0) * 100) / 100,
+    changeFromOpen,
     rs: rsRatings[q.symbol] || 50,
     volBuzz: Math.max(0.1, volBuzz),
+    volume: q.regularMarketVolume,
+    avgVolume: q.averageDailyVolume3Month,
     distSma50,
+    distSma200,
     distSma52wHigh,
+    distSma52wLow,
     stage,
     high52,
     low52,
-    open: q.regularMarketOpen,
+    open: openPrice,
     // Fundamentals
     marketCapB,
-    pe:  q.trailingPE  != null ? Math.round(q.trailingPE  * 10) / 10 : undefined,
-    fpe: q.forwardPE   != null ? Math.round(q.forwardPE   * 10) / 10 : undefined,
-    pb:  q.priceToBook != null ? Math.round(q.priceToBook * 10) / 10 : undefined,
-    eps: q.epsTrailingTwelveMonths != null ? Math.round(q.epsTrailingTwelveMonths * 100) / 100 : undefined,
+    sharesOutB,
+    floatB,
+    targetUpside,
+    pe:   q.trailingPE  != null ? Math.round(q.trailingPE  * 10) / 10 : undefined,
+    fpe:  q.forwardPE   != null ? Math.round(q.forwardPE   * 10) / 10 : undefined,
+    pb:   q.priceToBook != null ? Math.round(q.priceToBook * 10) / 10 : undefined,
+    ps:   q.priceToSalesTrailingTwelveMonths != null ? Math.round(q.priceToSalesTrailingTwelveMonths * 10) / 10 : undefined,
+    peg:  q.pegRatio    != null ? Math.round(q.pegRatio    * 10) / 10 : undefined,
+    eps:  q.epsTrailingTwelveMonths != null ? Math.round(q.epsTrailingTwelveMonths * 100) / 100 : undefined,
+    epsF: q.epsForward  != null ? Math.round(q.epsForward  * 100) / 100 : undefined,
+    divYield: q.trailingAnnualDividendYield != null ? Math.round(q.trailingAnnualDividendYield * 1000) / 10 : undefined,
     beta: q.beta != null ? Math.round(q.beta * 100) / 100 : undefined,
   };
 }
