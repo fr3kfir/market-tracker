@@ -8,6 +8,7 @@ import LeadersView from './components/LeadersView';
 import IndustryGroups from './components/IndustryGroups';
 import ArielDashboard from './components/ArielDashboard';
 import StockSearch from './components/StockSearch';
+import Screener from './components/Screener';
 import ArielBreadthTable from './components/ArielBreadthTable';
 import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from './data/stockUniverse';
 import { fetchArielBreadthData } from './services/arielBreadth';
@@ -67,6 +68,78 @@ function RefreshBadge({ countdown, lastUpdated, justRefreshed, loading }) {
   );
 }
 
+function ArielGuide() {
+  const s = { panel: { background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 } };
+
+  const Section = ({ title, children }) => (
+    <div>
+      <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-faint)', marginBottom: 8 }}>{title}</div>
+      {children}
+    </div>
+  );
+
+  const Row = ({ label, desc, color }) => (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+      <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: color || '#3b82f6', whiteSpace: 'nowrap', paddingTop: 1, minWidth: 90 }}>{label}</span>
+      <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>{desc}</span>
+    </div>
+  );
+
+  const ColorDot = ({ bg, label }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+      <div style={{ width: 28, height: 14, borderRadius: 3, background: bg, flexShrink: 0 }} />
+      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{label}</span>
+    </div>
+  );
+
+  return (
+    <div style={s.panel}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>How to Read Ariel Breadth</div>
+        <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
+          Each row is one trading day (newest on top). The numbers tell you how many stocks in the universe are doing specific things that day — giving you a pulse on market health.
+        </p>
+      </div>
+
+      <Section title="Primary Indicators (Yellow)">
+        <Row label="Up 4%+ Today" color="#fbbf24" desc="# of stocks up ≥4% on the day. High number = strong buying pressure." />
+        <Row label="Down 4%+ Today" color="#fbbf24" desc="# of stocks down ≥4%. High = heavy selling / distribution." />
+        <Row label="5-Day Ratio" color="#fbbf24" desc="(Up 4% days) ÷ (Down 4% days) over 5 days. Above 2 = bulls in control." />
+        <Row label="10-Day Ratio" color="#fbbf24" desc="Same ratio over 10 days. Slower but more reliable trend signal." />
+      </Section>
+
+      <Section title="Secondary Indicators (Green)">
+        <Row label="Up/Dn 25% Qtr" color="#4ade80" desc="Stocks up or down ≥25% in the last quarter. Many ups = strong market." />
+        <Row label="Up/Dn 25% Mo" color="#4ade80" desc="Same but last month — more sensitive, faster signal." />
+        <Row label="Up/Dn 50% Mo" color="#4ade80" desc="Extremes only. Huge monthly winners vs. crashes." />
+        <Row label="Up/Dn 13% 34d" color="#4ade80" desc="Ariel's 34-day window: moderate moves over ~5 weeks." />
+      </Section>
+
+      <Section title=">50dma (Blue)">
+        <Row label=">50dma %" color="#60a5fa" desc="Percent of stocks trading above their 50-day moving average. Above 60% = healthy market. Below 40% = caution." />
+      </Section>
+
+      <Section title="Color Scale">
+        <ColorDot bg="rgba(21,128,61,0.85)" label="Dark green — very strong / bullish" />
+        <ColorDot bg="rgba(34,197,94,0.38)" label="Light green — mild bullish" />
+        <ColorDot bg="rgba(100,116,139,0.15)" label="Gray — neutral / no signal" />
+        <ColorDot bg="rgba(220,38,38,0.45)" label="Light red — mild bearish" />
+        <ColorDot bg="rgba(185,28,28,0.85)" label="Dark red — very bearish / danger" />
+      </Section>
+
+      <Section title="Quick Rule of Thumb">
+        <div style={{ background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: '10px 12px' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+            <span style={{ color: '#22c55e', fontWeight: 700 }}>Bullish:</span> Ratio &gt; 2, many Up cols green, &gt;50dma above 60%<br />
+            <span style={{ color: '#f59e0b', fontWeight: 700 }}>Neutral:</span> Ratio ~1, mixed colors<br />
+            <span style={{ color: '#f87171', fontWeight: 700 }}>Bearish:</span> Ratio &lt; 1, many Dn cols red, &gt;50dma below 40%
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 const TABS = [
   { key: 'routine', label: '⚡ Routine' },
   { key: 'breadth', label: 'Breadth' },
@@ -75,6 +148,7 @@ const TABS = [
   { key: 'groups',  label: 'Groups' },
   { key: 'sectors', label: 'Sectors' },
   { key: 'themes',  label: 'Themes' },
+  { key: 'screener', label: '🔎 Screener' },
   { key: 'search',  label: '🔍 Search' },
 ];
 
@@ -348,7 +422,10 @@ export default function App() {
           <ArielDashboard breadth={breadth} stageDist={stageDist} industryGroupData={industryGroupData} stocksByTicker={stocksByTicker || {}} onGroupClick={handleGroupClick} />
         )}
         {desktopTab === 'ariel' && (
-          <ArielBreadthTable rows={arielRows} breadth={breadth} loading={arielLoading} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12, alignItems: 'start' }}>
+            <ArielBreadthTable rows={arielRows} breadth={breadth} loading={arielLoading} />
+            <ArielGuide />
+          </div>
         )}
         {desktopTab === 'breadth' && (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
@@ -379,6 +456,9 @@ export default function App() {
         {desktopTab === 'themes' && hotThemeData && (
           <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
         )}
+        {desktopTab === 'screener' && (
+          <Screener stocksByTicker={stocksByTicker || {}} />
+        )}
         {desktopTab === 'search' && (
           <StockSearch stocksByTicker={stocksByTicker || {}} />
         )}
@@ -398,6 +478,7 @@ export default function App() {
         {mobileTab === 'groups'  && industryGroupData && <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
         {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
+        {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} />}
         {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}
       </div>
     </div>

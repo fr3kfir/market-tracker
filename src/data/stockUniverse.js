@@ -258,7 +258,7 @@ export const INDUSTRY_GROUPS = [
   { name: 'Machinery',              sector: 'Industrials',            tickers: ['CAT','DE','EMR','PH','ROK','ITW','CMI','AGCO','TXT','XYL','GGG','FELE','AME','LII','CARR','OTIS','MIDD','GNRC'] },
   { name: 'Electrical / Grid',      sector: 'Industrials',            tickers: ['ETN','GNRC','POWL','AYI','PWR','HUBB','VRT','REZI','ARRY','BE','AEIS','ENPH','SEDG','FSLR'] },
   { name: 'Construction / Infra',   sector: 'Industrials',            tickers: ['VMC','MLM','NUE','PWR','MAS','EME','FAST','BECN','BLDR','AWI','APOG','UFP','SUM','EXP','DOOR','TREX','FTAI'] },
-  { name: 'eVTOL / UAM',            sector: 'Industrials',            tickers: ['JOBY','ACHR','ASTS','RKLB','AVAV','KTOS'] },
+  { name: 'eVTOL / UAM',            sector: 'Industrials',            tickers: ['JOBY','ACHR','ASTS','AVAV','KTOS'] },
   // ── Materials ──
   { name: 'Gold Mining',            sector: 'Materials',              tickers: ['NEM','AEM','GOLD','KGC','WPM','AGI','OR','PAAS','EQX','HL','BTG','MAG','NSU','DRD','HMY','AU','SBSW','GFI','RGLD','FNV'] },
   { name: 'Copper Mining',          sector: 'Materials',              tickers: ['FCX','SCCO','TECK','HBM','ERO','FM','CMC','SQM','ALTM'] },
