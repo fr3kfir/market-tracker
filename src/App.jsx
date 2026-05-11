@@ -148,7 +148,7 @@ const TABS = [
   { key: 'groups',  label: 'Groups' },
   { key: 'sectors', label: 'Sectors' },
   { key: 'themes',  label: 'Themes' },
-  { key: 'screener', label: '🔎 Screener' },
+  { key: 'screener', label: 'Screener' },
   { key: 'search',  label: '🔍 Search' },
 ];
 

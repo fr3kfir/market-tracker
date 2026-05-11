@@ -71,6 +71,8 @@ function processQuote(q, rsRatings) {
   const low52  = q.fiftyTwoWeekLow;
   const distSma52wHigh = high52 ? Math.round(((price - high52) / high52) * 1000) / 10 : undefined;
 
+  const marketCapB = q.marketCap ? Math.round(q.marketCap / 1e8) / 10 : undefined; // billions, 1 decimal
+
   return {
     ticker: q.symbol,
     name: q.shortName || q.symbol,
@@ -84,6 +86,13 @@ function processQuote(q, rsRatings) {
     high52,
     low52,
     open: q.regularMarketOpen,
+    // Fundamentals
+    marketCapB,
+    pe:  q.trailingPE  != null ? Math.round(q.trailingPE  * 10) / 10 : undefined,
+    fpe: q.forwardPE   != null ? Math.round(q.forwardPE   * 10) / 10 : undefined,
+    pb:  q.priceToBook != null ? Math.round(q.priceToBook * 10) / 10 : undefined,
+    eps: q.epsTrailingTwelveMonths != null ? Math.round(q.epsTrailingTwelveMonths * 100) / 100 : undefined,
+    beta: q.beta != null ? Math.round(q.beta * 100) / 100 : undefined,
   };
 }
 
