@@ -22,7 +22,7 @@ export const SECTOR_STOCKS = {
     // Quantum Computing
     'IONQ','QUBT','QBTS','RGTI',
     // AI Cloud / Infrastructure
-    'NBIS','CWAN','DOCN',
+    'NBIS','CWAN','DOCN','APLD',
   ],
   Energy: [
     // Majors
@@ -210,7 +210,7 @@ export const INDUSTRY_GROUPS = [
   { name: 'Hardware — Servers',     sector: 'Technology',             tickers: ['DELL','HPE','NTAP','SMCI','PSTG','HPQ','WDC','NTNX','PURE','NVDA','AMD','ALAB','VRT','ARM','AAPL','MSFT','AVGO','MRVL','INTC','QCOM','IBM'] },
   { name: 'IT Services / Consult',  sector: 'Technology',             tickers: ['ACN','IBM','CTSH','EPAM','WIT','INFY','GLOB','CACI','SAIC','LDOS','DXC','UNISYS','KFRC','EXLS','NSIT','ASGN','HCKT','ICFI','PSNL'] },
   { name: 'Quantum Computing',      sector: 'Technology',             tickers: ['IONQ','QUBT','QBTS','RGTI','IBM','GOOGL','MSFT','NVDA','ARQQ','QTUM','HONQ','QMCO'] },
-  { name: 'AI Cloud / Infra',       sector: 'Technology',             tickers: ['NBIS','SMCI','ALAB','DOCN','CWAN','DDOG','SNOW','MDB','PLTR','NET','NVDA','MSFT','GOOGL','AMZN','META','AMD','VRT','DELL','HPE','ANET'] },
+  { name: 'AI Cloud / Infra',       sector: 'Technology',             tickers: ['NBIS','SMCI','ALAB','DOCN','CWAN','APLD','DDOG','SNOW','MDB','PLTR','NET','NVDA','MSFT','GOOGL','AMZN','META','AMD','VRT','DELL','HPE','ANET'] },
   { name: 'IT Services / Consult',  sector: 'Technology',             tickers: ['ACN','IBM','CTSH','EPAM','WIT','INFY','GLOB','CACI','SAIC','LDOS','DXC','UNISYS','KFRC'] },
   // ── Energy ──
   { name: 'E&P — Major',            sector: 'Energy',                 tickers: ['XOM','CVX','COP','EOG','DVN','OXY','HES','APA','FANG','MRO','SU','CNQ','IMO','OVV','CHRD','PR','CTRA'] },
