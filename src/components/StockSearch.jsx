@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { SECTOR_STOCKS, INDUSTRY_GROUPS } from '../data/stockUniverse';
 import { enrichWithHistory } from '../services/marketData';
 
@@ -160,15 +160,25 @@ function buildLookup() {
 
 const TICKER_LOOKUP = buildLookup();
 
+const ALL_TICKERS = Object.keys(TICKER_LOOKUP).sort();
+
 export default function StockSearch({ stocksByTicker }) {
   const [input, setInput] = useState('');
   const [searched, setSearched] = useState('');
   const [activeTf, setActiveTf] = useState('change');
   const [historyLoading, setHistoryLoading] = useState(false);
   const [enrichedMap, setEnrichedMap] = useState({});
-  const [unknownStock, setUnknownStock] = useState(null); // for tickers not in universe
+  const [unknownStock, setUnknownStock] = useState(null);
   const [unknownLoading, setUnknownLoading] = useState(false);
   const [unknownNotFound, setUnknownNotFound] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef(null);
+
+  const suggestions = useMemo(() => {
+    if (!input || input.length < 1) return [];
+    const q = input.toUpperCase();
+    return ALL_TICKERS.filter(t => t.startsWith(q)).slice(0, 8);
+  }, [input]);
 
   const ticker = searched.toUpperCase().trim();
 
@@ -234,24 +244,29 @@ export default function StockSearch({ stocksByTicker }) {
     }
   }, []);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const t = input.toUpperCase().trim();
-    if (!t) return;
-    setSearched(t);
+  const runSearch = (t) => {
+    const ticker = t.toUpperCase().trim();
+    if (!ticker) return;
+    setInput(ticker);
+    setSearched(ticker);
     setEnrichedMap({});
     setActiveTf('change');
     setUnknownStock(null);
     setUnknownNotFound(false);
+    setShowSuggestions(false);
 
-    const inf = TICKER_LOOKUP[t];
+    const inf = TICKER_LOOKUP[ticker];
     if (!inf) {
-      // Not in universe — try fetching directly from Yahoo Finance
-      if (!stocksByTicker[t]) loadUnknownStock(t);
+      if (!stocksByTicker[ticker]) loadUnknownStock(ticker);
       return;
     }
     const groups = INDUSTRY_GROUPS.filter(g => inf.groups.includes(g.name));
     if (groups.length) loadHistory(groups);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    runSearch(input);
   };
 
   const stockData = stocksMap[ticker] || (unknownStock?.ticker === ticker ? unknownStock : null);
@@ -261,28 +276,79 @@ export default function StockSearch({ stocksByTicker }) {
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Search bar */}
       <form onSubmit={handleSearch} style={{ marginBottom: 24 }}>
-        <div style={{
-          display: 'flex', gap: 8, alignItems: 'center',
-          background: 'var(--bg-panel)', border: '1px solid var(--border)',
-          borderRadius: 12, padding: '10px 14px',
-        }}>
-          <span style={{ fontSize: 16 }}>🔍</span>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value.toUpperCase())}
-            placeholder="Enter ticker symbol (e.g. NVDA, AAPL, CRWD)..."
-            style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: 'var(--text)', fontFamily: 'monospace', fontSize: 14, fontWeight: 600,
-            }}
-            autoFocus autoComplete="off" spellCheck={false}
-          />
-          <button type="submit" style={{
-            background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8,
-            padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+        <div style={{ position: 'relative' }}>
+          <div style={{
+            display: 'flex', gap: 8, alignItems: 'center',
+            background: 'var(--bg-panel)', border: '1px solid var(--border)',
+            borderRadius: showSuggestions && suggestions.length ? '12px 12px 0 0' : 12,
+            padding: '10px 14px',
           }}>
-            Search
-          </button>
+            <span style={{ fontSize: 16 }}>🔍</span>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={e => { setInput(e.target.value.toUpperCase()); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Enter ticker symbol (e.g. NVDA, AAPL, CRWD)..."
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                color: 'var(--text)', fontFamily: 'monospace', fontSize: 14, fontWeight: 600,
+              }}
+              autoFocus autoComplete="off" spellCheck={false}
+            />
+            <button type="submit" style={{
+              background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8,
+              padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+            }}>
+              Search
+            </button>
+          </div>
+
+          {/* Autocomplete dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+              background: 'var(--bg-panel)', border: '1px solid var(--border)',
+              borderTop: 'none', borderRadius: '0 0 12px 12px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)', overflow: 'hidden',
+            }}>
+              {suggestions.map((t, i) => {
+                const info = TICKER_LOOKUP[t];
+                const sector = info?.sectors[0] || '';
+                const group = info?.groups[0] || '';
+                return (
+                  <div
+                    key={t}
+                    onMouseDown={() => runSearch(t)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 14px', cursor: 'pointer',
+                      borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none',
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#60a5fa', minWidth: 60 }}>{t}</span>
+                    {sector && (
+                      <span style={{
+                        fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+                        background: 'rgba(59,130,246,0.15)', color: '#93c5fd',
+                        padding: '2px 8px', borderRadius: 20,
+                      }}>{sector}</span>
+                    )}
+                    {group && (
+                      <span style={{
+                        fontSize: 10, fontFamily: 'monospace',
+                        color: 'var(--text-faint)',
+                      }}>{group}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </form>
 
