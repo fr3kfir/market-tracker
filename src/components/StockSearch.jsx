@@ -224,11 +224,13 @@ export default function StockSearch({ stocksByTicker }) {
       const distSma52wHigh = high52 ? Math.round(((price - high52) / high52) * 1000) / 10 : undefined;
       const stock = {
         ticker: result.symbol,
-        name: result.shortName || result.symbol,
+        name: result.longName || result.shortName || result.symbol,
         price: Math.round(price * 100) / 100,
         change: Math.round((result.regularMarketChangePercent || 0) * 100) / 100,
         high52, low52, distSma52wHigh,
         sma50, sma200,
+        sector: result.sector || null,
+        industry: result.industry || null,
       };
       // Also fetch history for w1/m1/m3/ytd
       try {
@@ -378,28 +380,72 @@ export default function StockSearch({ stocksByTicker }) {
         <div>
           <div style={{
             background: 'var(--bg-panel)', border: '2px solid #3b82f6',
-            borderRadius: 12, padding: '14px 18px', marginBottom: 20,
-            display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center',
+            borderRadius: 12, padding: '18px 20px', marginBottom: 20,
           }}>
-            <div>
-              <span style={{ fontFamily: 'monospace', fontSize: 22, fontWeight: 800, color: '#60a5fa' }}>{unknownStock.ticker}</span>
-              <span style={{ marginLeft: 12, fontFamily: 'monospace', fontSize: 16, color: 'var(--text)' }}>${unknownStock.price?.toFixed(2)}</span>
-              {unknownStock.name && unknownStock.name !== unknownStock.ticker && (
-                <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>{unknownStock.name}</span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {TIMEFRAMES.map(tf => (
-                <div key={tf.key} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', marginBottom: 2 }}>{tf.label}</div>
-                  <PerfBadge value={unknownStock[tf.key]} highlight />
+            {/* Top row: ticker + price + change */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <span style={{ fontFamily: 'monospace', fontSize: 24, fontWeight: 800, color: '#60a5fa' }}>{unknownStock.ticker}</span>
+                {unknownStock.name && unknownStock.name !== unknownStock.ticker && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{unknownStock.name}</div>
+                )}
+                <div style={{ display: 'flex', gap: 10, marginTop: 6, alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 15, color: 'var(--text)', fontWeight: 600 }}>
+                    ${unknownStock.price?.toFixed(2)}
+                  </span>
+                  {unknownStock.change != null && (
+                    <span style={{
+                      fontFamily: 'monospace', fontSize: 12, fontWeight: 700,
+                      color: unknownStock.change >= 0 ? '#34d399' : '#f87171',
+                      background: unknownStock.change >= 0 ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
+                      padding: '2px 8px', borderRadius: 20,
+                    }}>
+                      {unknownStock.change >= 0 ? '+' : ''}{unknownStock.change.toFixed(2)}%
+                    </span>
+                  )}
                 </div>
-              ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginLeft: 'auto' }}>
+                {TIMEFRAMES.map(tf => (
+                  <div key={tf.key} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', marginBottom: 2 }}>{tf.label}</div>
+                    <PerfBadge value={unknownStock[tf.key]} highlight />
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Sector + Industry from Yahoo */}
+            {(unknownStock.sector || unknownStock.industry) && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                {unknownStock.sector && (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', marginBottom: 5 }}>Sector</div>
+                    <span style={{
+                      fontFamily: 'monospace', fontSize: 12, fontWeight: 600,
+                      background: 'rgba(59,130,246,0.18)', color: '#93c5fd',
+                      padding: '5px 14px', borderRadius: 20, border: '1px solid rgba(59,130,246,0.3)',
+                    }}>📂 {unknownStock.sector}</span>
+                  </div>
+                )}
+                {unknownStock.industry && (
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', marginBottom: 5 }}>Industry</div>
+                    <span style={{
+                      fontFamily: 'monospace', fontSize: 12, fontWeight: 600,
+                      background: 'rgba(99,102,241,0.15)', color: '#818cf8',
+                      padding: '5px 14px', borderRadius: 20, border: '1px solid rgba(99,102,241,0.25)',
+                    }}>🏭 {unknownStock.industry}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div style={{ color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12, textAlign: 'center' }}>
-            No industry group data for this ticker
-          </div>
+          {!unknownStock.sector && (
+            <div style={{ color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12, textAlign: 'center' }}>
+              No sector/industry data available for this ticker
+            </div>
+          )}
         </div>
       )}
 

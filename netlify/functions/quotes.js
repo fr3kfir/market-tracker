@@ -5,7 +5,8 @@ const FIELDS = [
   'regularMarketPrice', 'regularMarketChangePercent', 'regularMarketOpen',
   'regularMarketVolume', 'averageDailyVolume3Month',
   'fiftyDayAverage', 'twoHundredDayAverage',
-  'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'shortName',
+  'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'shortName', 'longName',
+  'sector', 'industry',
 ].join(',');
 
 async function getAuth() {
