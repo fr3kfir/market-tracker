@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { STAGE_COLORS } from './StageOverview';
+import TickerInfoPopup from './TickerInfoPopup';
 
 const STAGE_TEXT = {
   S1: 'text-gray-400',
@@ -48,6 +49,7 @@ export default function LeadersView({ name, stocks, onBack, historyLoading }) {
   const [activeTf, setActiveTf] = useState('change');
   const [sortKey, setSortKey] = useState(null); // null = auto-sort by activeTf
   const [sortDir, setSortDir] = useState('desc');
+  const [popupStock, setPopupStock] = useState(null);
 
   const handleSort = (key) => {
     if (sortKey === key || (sortKey === null && key === activeTf)) {
@@ -177,7 +179,12 @@ export default function LeadersView({ name, stocks, onBack, historyLoading }) {
                 >
                   <td style={{ padding: '10px 8px', fontFamily: 'monospace', color: 'var(--text-faint)' }}>{i + 1}</td>
                   <td style={{ padding: '10px 8px' }}>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)' }}>{s.ticker}</span>
+                    <span
+                      onClick={() => setPopupStock(s)}
+                      style={{ fontFamily: 'monospace', fontWeight: 700, color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                    >
+                      {s.ticker}
+                    </span>
                   </td>
                   <td style={{ padding: '10px 8px', color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</td>
                   <td style={{ padding: '10px 8px', fontFamily: 'monospace', color: 'var(--text)', textAlign: 'right' }}>${s.price.toFixed(2)}</td>
@@ -240,6 +247,14 @@ export default function LeadersView({ name, stocks, onBack, historyLoading }) {
           </p>
         )}
       </div>
+
+      {popupStock && (
+        <TickerInfoPopup
+          ticker={popupStock.ticker}
+          stock={popupStock}
+          onClose={() => setPopupStock(null)}
+        />
+      )}
     </div>
   );
 }

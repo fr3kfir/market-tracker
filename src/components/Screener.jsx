@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { SECTOR_STOCKS } from '../data/stockUniverse';
+import TickerInfoPopup from './TickerInfoPopup';
 
 const RS_COLOR = rs => rs >= 80 ? '#10b981' : rs >= 60 ? '#3b82f6' : rs >= 40 ? '#f59e0b' : '#e879f9';
 const STAGE_COLORS = { S1: '#94a3b8', S2: '#60a5fa', S3: '#f59e0b', S4: '#f472b6' };
@@ -202,7 +203,7 @@ function fmtVol(v) {
   return String(v);
 }
 
-function StockRow({ stock, i }) {
+function StockRow({ stock, i, onTickerClick }) {
   const [hover, setHover] = useState(false);
   return (
     <tr
@@ -214,7 +215,12 @@ function StockRow({ stock, i }) {
         transition: 'background 0.1s',
       }}
     >
-      <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#60a5fa', whiteSpace: 'nowrap' }}>{stock.ticker}</td>
+      <td
+        onClick={() => onTickerClick(stock)}
+        style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#60a5fa', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+      >
+        {stock.ticker}
+      </td>
       <td style={{ padding: '7px 10px', fontSize: 11, color: 'var(--text-muted)', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stock.name || '—'}</td>
       <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: 12, color: 'var(--text)', textAlign: 'right' }}>{stock.price != null ? `$${stock.price.toFixed(2)}` : '—'}</td>
       <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfCell value={stock.change} /></td>
@@ -254,6 +260,7 @@ export default function Screener({ stocksByTicker }) {
   const [sortKey, setSortKey] = useState('rs');
   const [sortDir, setSortDir] = useState('desc');
   const [activePreset, setActivePreset] = useState(null);
+  const [popupStock, setPopupStock] = useState(null);
 
   const allStocks = useMemo(() => Object.values(stocksByTicker), [stocksByTicker]);
   const filtered  = useMemo(() => applyFilters(allStocks, filters), [allStocks, filters]);
@@ -431,17 +438,25 @@ export default function Screener({ stocksByTicker }) {
                   </td>
                 </tr>
               ) : (
-                sorted.map((stock, i) => <StockRow key={stock.ticker} stock={stock} i={i} />)
+                sorted.map((stock, i) => <StockRow key={stock.ticker} stock={stock} i={i} onTickerClick={setPopupStock} />)
               )}
             </tbody>
           </table>
         </div>
         {sorted.length > 0 && (
           <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border)', fontSize: 10, fontFamily: 'monospace', color: 'var(--text-faint)' }}>
-            {sorted.length} result{sorted.length !== 1 ? 's' : ''} · Click column headers to sort
+            {sorted.length} result{sorted.length !== 1 ? 's' : ''} · Click column headers to sort · Click ticker for sector/group info
           </div>
         )}
       </div>
+
+      {popupStock && (
+        <TickerInfoPopup
+          ticker={popupStock.ticker}
+          stock={popupStock}
+          onClose={() => setPopupStock(null)}
+        />
+      )}
     </div>
   );
 }
