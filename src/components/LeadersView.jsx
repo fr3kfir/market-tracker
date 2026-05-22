@@ -45,7 +45,7 @@ function PerfBadge({ value, isActive }) {
   );
 }
 
-export default function LeadersView({ name, stocks, onBack, historyLoading }) {
+export default function LeadersView({ name, stocks, onBack, historyLoading, onClip }) {
   const [activeTf, setActiveTf] = useState('change');
   const [sortKey, setSortKey] = useState(null); // null = auto-sort by activeTf
   const [sortDir, setSortDir] = useState('desc');
@@ -253,6 +253,8 @@ export default function LeadersView({ name, stocks, onBack, historyLoading }) {
           ticker={popupStock.ticker}
           stock={popupStock}
           onClose={() => setPopupStock(null)}
+          allStocks={sorted}
+          onClip={onClip}
         />
       )}
     </div>

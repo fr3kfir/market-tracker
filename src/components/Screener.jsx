@@ -1,11 +1,15 @@
 import { useState, useMemo } from 'react';
 import { SECTOR_STOCKS } from '../data/stockUniverse';
 import TickerInfoPopup from './TickerInfoPopup';
+import MiniChart from './MiniChart';
+import { CLIP_COLORS, CLIP_BG } from './ClipboardPanel';
 
 const RS_COLOR = rs => rs >= 80 ? '#10b981' : rs >= 60 ? '#3b82f6' : rs >= 40 ? '#f59e0b' : '#e879f9';
 const STAGE_COLORS = { S1: '#94a3b8', S2: '#60a5fa', S3: '#f59e0b', S4: '#f472b6' };
 const SECTORS = Object.keys(SECTOR_STOCKS);
 const FILTER_TABS = ['Descriptive', 'Fundamental', 'Technical', 'Performance'];
+const CHART_RANGES = ['1W', '1M', '3M'];
+const CHART_MAX = 48;
 
 const PRESETS = [
   { label: 'Stage 2 Leaders',  filters: { stages: ['S2'], rsMin: 70 } },
@@ -17,38 +21,21 @@ const PRESETS = [
 ];
 
 const DEFAULT_FILTERS = {
-  // Descriptive
   sectors: [], stages: [],
-  // Fundamental
   marketCapMin: '', marketCapMax: '',
-  peMin: '', peMax: '',
-  fpeMin: '', fpeMax: '',
-  pegMin: '', pegMax: '',
-  psMin: '', psMax: '',
-  pbMin: '', pbMax: '',
-  epsMin: '', epsMax: '',
-  epsFMin: '', epsFMax: '',
+  peMin: '', peMax: '', fpeMin: '', fpeMax: '',
+  pegMin: '', pegMax: '', psMin: '', psMax: '', pbMin: '', pbMax: '',
+  epsMin: '', epsMax: '', epsFMin: '', epsFMax: '',
   divYieldMin: '', divYieldMax: '',
-  sharesOutMin: '', sharesOutMax: '',
-  floatMin: '', floatMax: '',
-  // Technical
+  sharesOutMin: '', sharesOutMax: '', floatMin: '', floatMax: '',
   rsMin: '', rsMax: '',
-  distSma50Min: '', distSma50Max: '',
-  distSma200Min: '', distSma200Max: '',
-  changeMin: '', changeMax: '',
-  changeFromOpenMin: '', changeFromOpenMax: '',
-  distHighMin: '', distHighMax: '',
-  distLowMin: '', distLowMax: '',
-  betaMin: '', betaMax: '',
-  volBuzzMin: '', volBuzzMax: '',
-  avgVolMin: '', avgVolMax: '',
-  volumeMin: '', volumeMax: '',
-  priceMin: '', priceMax: '',
-  targetUpsideMin: '', targetUpsideMax: '',
-  // Performance
-  w1Min: '', w1Max: '',
-  m1Min: '', m1Max: '',
-  m3Min: '', m3Max: '',
+  distSma50Min: '', distSma50Max: '', distSma200Min: '', distSma200Max: '',
+  changeMin: '', changeMax: '', changeFromOpenMin: '', changeFromOpenMax: '',
+  distHighMin: '', distHighMax: '', distLowMin: '', distLowMax: '',
+  betaMin: '', betaMax: '', volBuzzMin: '', volBuzzMax: '',
+  avgVolMin: '', avgVolMax: '', volumeMin: '', volumeMax: '',
+  priceMin: '', priceMax: '', targetUpsideMin: '', targetUpsideMax: '',
+  w1Min: '', w1Max: '', m1Min: '', m1Max: '', m3Min: '', m3Max: '',
 };
 
 const TICKER_SECTOR = {};
@@ -68,7 +55,6 @@ function applyFilters(stocks, f) {
   return stocks.filter(s => {
     if (f.sectors.length && !f.sectors.includes(TICKER_SECTOR[s.ticker])) return false;
     if (f.stages.length  && !f.stages.includes(s.stage))  return false;
-    // Fundamental
     if (!pass(s.marketCapB,  'marketCapMin',  'marketCapMax',  f)) return false;
     if (!pass(s.pe,          'peMin',         'peMax',         f)) return false;
     if (!pass(s.fpe,         'fpeMin',        'fpeMax',        f)) return false;
@@ -80,7 +66,6 @@ function applyFilters(stocks, f) {
     if (!pass(s.divYield,    'divYieldMin',   'divYieldMax',   f)) return false;
     if (!pass(s.sharesOutB,  'sharesOutMin',  'sharesOutMax',  f)) return false;
     if (!pass(s.floatB,      'floatMin',      'floatMax',      f)) return false;
-    // Technical
     if (!pass(s.rs,              'rsMin',             'rsMax',             f)) return false;
     if (!pass(s.distSma50,       'distSma50Min',      'distSma50Max',      f)) return false;
     if (!pass(s.distSma200,      'distSma200Min',     'distSma200Max',     f)) return false;
@@ -94,7 +79,6 @@ function applyFilters(stocks, f) {
     if (!pass(s.volume,          'volumeMin',         'volumeMax',         f)) return false;
     if (!pass(s.price,           'priceMin',          'priceMax',          f)) return false;
     if (!pass(s.targetUpside,    'targetUpsideMin',   'targetUpsideMax',   f)) return false;
-    // Performance
     if (!pass(s.w1, 'w1Min', 'w1Max', f)) return false;
     if (!pass(s.m1, 'm1Min', 'm1Max', f)) return false;
     if (!pass(s.m3, 'm3Min', 'm3Max', f)) return false;
@@ -117,19 +101,13 @@ function RangeRow({ label, minKey, maxKey, filters, setFilters, step, note }) {
         {label}
         {note && <span style={{ fontSize: 9, color: 'var(--text-faint)', marginLeft: 4 }}>{note}</span>}
       </span>
-      <input
-        type="number" step={step || 'any'} placeholder="Min"
-        value={filters[minKey]}
+      <input type="number" step={step || 'any'} placeholder="Min" value={filters[minKey]}
         onChange={e => setFilters(f => ({ ...f, [minKey]: e.target.value }))}
-        style={{ width: 70, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', fontFamily: 'monospace', fontSize: 12, padding: '4px 6px', outline: 'none' }}
-      />
+        style={{ width: 70, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', fontFamily: 'monospace', fontSize: 12, padding: '4px 6px', outline: 'none' }} />
       <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>–</span>
-      <input
-        type="number" step={step || 'any'} placeholder="Max"
-        value={filters[maxKey]}
+      <input type="number" step={step || 'any'} placeholder="Max" value={filters[maxKey]}
         onChange={e => setFilters(f => ({ ...f, [maxKey]: e.target.value }))}
-        style={{ width: 70, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', fontFamily: 'monospace', fontSize: 12, padding: '4px 6px', outline: 'none' }}
-      />
+        style={{ width: 70, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', fontFamily: 'monospace', fontSize: 12, padding: '4px 6px', outline: 'none' }} />
     </div>
   );
 }
@@ -203,23 +181,29 @@ function fmtVol(v) {
   return String(v);
 }
 
-function StockRow({ stock, i, onTickerClick }) {
+function StockRow({ stock, i, onTickerClick, cs, onClip }) {
   const [hover, setHover] = useState(false);
   return (
     <tr
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      onClick={() => onClip && onClip(stock.ticker, stock.name)}
       style={{
         borderBottom: '1px solid var(--border)',
-        background: hover ? 'rgba(59,130,246,0.06)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+        background: cs ? CLIP_BG[cs] : hover ? 'rgba(59,130,246,0.06)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+        borderLeft: cs ? `3px solid ${CLIP_COLORS[cs]}` : '3px solid transparent',
         transition: 'background 0.1s',
+        cursor: onClip ? 'pointer' : 'default',
       }}
     >
       <td
-        onClick={() => onTickerClick(stock)}
-        style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#60a5fa', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+        onClick={e => { e.stopPropagation(); onTickerClick(stock); }}
+        style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: cs ? CLIP_COLORS[cs] : '#60a5fa', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
       >
-        {stock.ticker}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {cs && <span style={{ width: 6, height: 6, borderRadius: '50%', background: CLIP_COLORS[cs], display: 'inline-block', flexShrink: 0 }} />}
+          {stock.ticker}
+        </span>
       </td>
       <td style={{ padding: '7px 10px', fontSize: 11, color: 'var(--text-muted)', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stock.name || '—'}</td>
       <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: 12, color: 'var(--text)', textAlign: 'right' }}>{stock.price != null ? `$${stock.price.toFixed(2)}` : '—'}</td>
@@ -252,15 +236,78 @@ function StockRow({ stock, i, onTickerClick }) {
   );
 }
 
+// ── Chart Card ───────────────────────────────────────────────────────────
+
+function ChartCard({ stock, range, cs, onClip, onTickerClick }) {
+  const change = stock.change ?? 0;
+  const changeColor = change >= 0 ? '#34d399' : '#f87171';
+
+  return (
+    <div
+      style={{
+        background: cs ? CLIP_BG[cs] : 'var(--bg-panel)',
+        border: `1px solid ${cs ? CLIP_COLORS[cs] : 'var(--border)'}`,
+        borderRadius: 10, overflow: 'hidden',
+        display: 'flex', flexDirection: 'column',
+        transition: 'border-color 0.15s',
+      }}
+      onMouseEnter={e => { if (!cs) e.currentTarget.style.borderColor = '#3b82f6'; }}
+      onMouseLeave={e => { if (!cs) e.currentTarget.style.borderColor = 'var(--border)'; }}
+    >
+      {/* Card header — click here to clipboard */}
+      <div
+        onClick={() => onClip && onClip(stock.ticker, stock.name)}
+        style={{ padding: '10px 12px 6px', cursor: onClip ? 'pointer' : 'default', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {cs && <span style={{ width: 7, height: 7, borderRadius: '50%', background: CLIP_COLORS[cs], flexShrink: 0, display: 'inline-block' }} />}
+            <span
+              onClick={e => { e.stopPropagation(); onTickerClick(stock); }}
+              style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 800, color: cs ? CLIP_COLORS[cs] : '#60a5fa', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+            >{stock.ticker}</span>
+            {stock.stage && (
+              <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: STAGE_COLORS[stock.stage], background: `${STAGE_COLORS[stock.stage]}22`, padding: '1px 5px', borderRadius: 4 }}>
+                {stock.stage}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{stock.name}</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          {stock.price != null && <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>${stock.price.toFixed(2)}</div>}
+          <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: changeColor }}>
+            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+          </div>
+        </div>
+      </div>
+
+      {/* RS badge */}
+      {stock.rs != null && (
+        <div style={{ paddingLeft: 12, paddingBottom: 4 }}>
+          <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: RS_COLOR(stock.rs), background: `${RS_COLOR(stock.rs)}18`, padding: '1px 6px', borderRadius: 4 }}>
+            RS {stock.rs}
+          </span>
+        </div>
+      )}
+
+      {/* TradingView chart */}
+      <MiniChart ticker={stock.ticker} range={range} height={180} />
+    </div>
+  );
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
 
-export default function Screener({ stocksByTicker }) {
+export default function Screener({ stocksByTicker, clipboard, onClip }) {
   const [activeTab, setActiveTab] = useState('Descriptive');
   const [filters, setFilters] = useState({ ...DEFAULT_FILTERS });
   const [sortKey, setSortKey] = useState('rs');
   const [sortDir, setSortDir] = useState('desc');
   const [activePreset, setActivePreset] = useState(null);
   const [popupStock, setPopupStock] = useState(null);
+  const [viewMode, setViewMode] = useState('list');
+  const [chartRange, setChartRange] = useState('3M');
 
   const allStocks = useMemo(() => Object.values(stocksByTicker), [stocksByTicker]);
   const filtered  = useMemo(() => applyFilters(allStocks, filters), [allStocks, filters]);
@@ -271,6 +318,8 @@ export default function Screener({ stocksByTicker }) {
     if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
     return sortDir === 'desc' ? bv - av : av - bv;
   }), [filtered, sortKey, sortDir]);
+
+  const chartStocks = useMemo(() => sorted.slice(0, CHART_MAX), [sorted]);
 
   const handleSort = key => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
@@ -287,6 +336,13 @@ export default function Screener({ stocksByTicker }) {
   const hasActiveFilters = Object.entries(filters).some(([, v]) =>
     Array.isArray(v) ? v.length > 0 : v !== ''
   );
+
+  const clipState = (ticker) => {
+    if ((clipboard?.long     ?? []).some(t => t.ticker === ticker)) return 'long';
+    if ((clipboard?.short    ?? []).some(t => t.ticker === ticker)) return 'short';
+    if ((clipboard?.universe ?? []).some(t => t.ticker === ticker)) return 'universe';
+    return null;
+  };
 
   const sf = { filters, setFilters };
   const thProps = { sortKey, sortDir, onSort: handleSort };
@@ -316,8 +372,6 @@ export default function Screener({ stocksByTicker }) {
 
       {/* Filter Panel */}
       <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 16, overflow: 'hidden' }}>
-
-        {/* Tab bar */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
           {FILTER_TABS.map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
@@ -335,16 +389,13 @@ export default function Screener({ stocksByTicker }) {
           </div>
         </div>
 
-        {/* Filter body */}
         <div style={{ padding: '16px 18px' }}>
-
           {activeTab === 'Descriptive' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <SectorToggle sectors={filters.sectors} onChange={v => setFilters(f => ({ ...f, sectors: v }))} />
               <StageToggle  stages={filters.stages}   onChange={v => setFilters(f => ({ ...f, stages: v }))} />
             </div>
           )}
-
           {activeTab === 'Fundamental' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
               <FilterGroup title="Valuation">
@@ -366,7 +417,6 @@ export default function Screener({ stocksByTicker }) {
               </FilterGroup>
             </div>
           )}
-
           {activeTab === 'Technical' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
               <FilterGroup title="Moving Averages">
@@ -394,7 +444,6 @@ export default function Screener({ stocksByTicker }) {
               </FilterGroup>
             </div>
           )}
-
           {activeTab === 'Performance' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
               <FilterGroup title="Returns">
@@ -404,57 +453,138 @@ export default function Screener({ stocksByTicker }) {
               </FilterGroup>
             </div>
           )}
-
         </div>
       </div>
 
-      {/* Results Table */}
-      <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <SortTh label="Ticker"   col="ticker"       align="left" {...thProps} />
-                <th style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'monospace', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</th>
-                <SortTh label="Price"    col="price"        {...thProps} />
-                <SortTh label="Today"    col="change"       {...thProps} />
-                <SortTh label="1W"       col="w1"           {...thProps} />
-                <SortTh label="1M"       col="m1"           {...thProps} />
-                <SortTh label="3M"       col="m3"           {...thProps} />
-                <SortTh label="RS"       col="rs"           {...thProps} />
-                <SortTh label="Vol Buzz" col="volBuzz"      {...thProps} />
-                <SortTh label="52w High" col="distSma52wHigh" {...thProps} />
-                <SortTh label="Mkt Cap"  col="marketCapB"   {...thProps} />
-                <SortTh label="P/E"      col="pe"           {...thProps} />
-                <SortTh label="Beta"     col="beta"         {...thProps} />
-                <SortTh label="Stage"    col="stage"        align="center" {...thProps} />
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.length === 0 ? (
-                <tr>
-                  <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>
-                    No stocks match the current filters
-                  </td>
-                </tr>
-              ) : (
-                sorted.map((stock, i) => <StockRow key={stock.ticker} stock={stock} i={i} onTickerClick={setPopupStock} />)
-              )}
-            </tbody>
-          </table>
+      {/* Results header: view toggle + range (charts mode) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+        {/* View toggle */}
+        <div style={{ display: 'flex', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8, padding: 3, gap: 2 }}>
+          {[{ key: 'list', icon: '≡', label: 'List' }, { key: 'charts', icon: '⊞', label: 'Charts' }].map(v => (
+            <button
+              key={v.key}
+              onClick={() => setViewMode(v.key)}
+              style={{
+                padding: '5px 14px', fontSize: 12, fontFamily: 'monospace', fontWeight: 600,
+                borderRadius: 6, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                background: viewMode === v.key ? '#3b82f6' : 'transparent',
+                color: viewMode === v.key ? '#fff' : 'var(--text-muted)',
+              }}
+            >{v.icon} {v.label}</button>
+          ))}
         </div>
-        {sorted.length > 0 && (
-          <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border)', fontSize: 10, fontFamily: 'monospace', color: 'var(--text-faint)' }}>
-            {sorted.length} result{sorted.length !== 1 ? 's' : ''} · Click column headers to sort · Click ticker for sector/group info
+
+        {/* Range pills (charts mode only) */}
+        {viewMode === 'charts' && (
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>Range:</span>
+            {CHART_RANGES.map(r => (
+              <button key={r} onClick={() => setChartRange(r)} style={{
+                padding: '4px 10px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
+                borderRadius: 20, border: '1px solid', cursor: 'pointer', transition: 'all 0.15s',
+                borderColor: chartRange === r ? '#a78bfa' : 'var(--border)',
+                background:  chartRange === r ? 'rgba(167,139,250,0.15)' : 'transparent',
+                color:       chartRange === r ? '#a78bfa' : 'var(--text-muted)',
+              }}>{r}</button>
+            ))}
           </div>
         )}
+
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'monospace', color: 'var(--text-faint)' }}>
+          {sorted.length} result{sorted.length !== 1 ? 's' : ''}
+          {viewMode === 'charts' && sorted.length > CHART_MAX && ` · showing top ${CHART_MAX}`}
+        </span>
       </div>
+
+      {/* Results: List View */}
+      {viewMode === 'list' && (
+        <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <SortTh label="Ticker"   col="ticker"       align="left" {...thProps} />
+                  <th style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'monospace', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</th>
+                  <SortTh label="Price"    col="price"        {...thProps} />
+                  <SortTh label="Today"    col="change"       {...thProps} />
+                  <SortTh label="1W"       col="w1"           {...thProps} />
+                  <SortTh label="1M"       col="m1"           {...thProps} />
+                  <SortTh label="3M"       col="m3"           {...thProps} />
+                  <SortTh label="RS"       col="rs"           {...thProps} />
+                  <SortTh label="Vol Buzz" col="volBuzz"      {...thProps} />
+                  <SortTh label="52w High" col="distSma52wHigh" {...thProps} />
+                  <SortTh label="Mkt Cap"  col="marketCapB"   {...thProps} />
+                  <SortTh label="P/E"      col="pe"           {...thProps} />
+                  <SortTh label="Beta"     col="beta"         {...thProps} />
+                  <SortTh label="Stage"    col="stage"        align="center" {...thProps} />
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>
+                      No stocks match the current filters
+                    </td>
+                  </tr>
+                ) : (
+                  sorted.map((stock, i) => (
+                    <StockRow
+                      key={stock.ticker} stock={stock} i={i}
+                      onTickerClick={setPopupStock}
+                      cs={clipState(stock.ticker)}
+                      onClip={onClip}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {sorted.length > 0 && (
+            <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border)', fontSize: 10, fontFamily: 'monospace', color: 'var(--text-faint)' }}>
+              {sorted.length} result{sorted.length !== 1 ? 's' : ''} · Click row to add to Clipboard (1=Long 🟢, 2=Short 🔴, 3=Universe 🔵) · Click ticker for details
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Results: Charts View */}
+      {viewMode === 'charts' && (
+        <div>
+          {sorted.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13, background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12 }}>
+              No stocks match the current filters
+            </div>
+          ) : sorted.length > CHART_MAX ? (
+            <div style={{ padding: '16px 20px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, marginBottom: 12, fontSize: 12, color: '#f59e0b', fontFamily: 'monospace' }}>
+              ⚠ {sorted.length} results — showing top {CHART_MAX}. Apply more filters to see fewer stocks.
+            </div>
+          ) : null}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            gap: 10,
+          }}>
+            {chartStocks.map(stock => (
+              <ChartCard
+                key={stock.ticker}
+                stock={stock}
+                range={chartRange}
+                cs={clipState(stock.ticker)}
+                onClip={onClip}
+                onTickerClick={setPopupStock}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {popupStock && (
         <TickerInfoPopup
           ticker={popupStock.ticker}
           stock={popupStock}
           onClose={() => setPopupStock(null)}
+          allStocks={sorted}
+          onClip={onClip}
         />
       )}
     </div>

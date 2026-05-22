@@ -116,6 +116,12 @@ function processQuote(q, rsRatings) {
     epsF: q.epsForward  != null ? Math.round(q.epsForward  * 100) / 100 : undefined,
     divYield: q.trailingAnnualDividendYield != null ? Math.round(q.trailingAnnualDividendYield * 1000) / 10 : undefined,
     beta: q.beta != null ? Math.round(q.beta * 100) / 100 : undefined,
+    earningsDate: (() => {
+      const ts = q.earningsTimestampStart;
+      if (!ts) return undefined;
+      const d = ts instanceof Date ? ts : new Date(ts * 1000);
+      return isNaN(d) ? undefined : d.toISOString().slice(0, 10);
+    })(),
   };
 }
 

@@ -10,6 +10,9 @@ import ArielDashboard from './components/ArielDashboard';
 import StockSearch from './components/StockSearch';
 import Screener from './components/Screener';
 import ArielBreadthTable from './components/ArielBreadthTable';
+import ClipboardPanel from './components/ClipboardPanel';
+import SecFilings from './components/SecFilings';
+import EarningsCalendar from './components/EarningsCalendar';
 import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from './data/stockUniverse';
 import { fetchArielBreadthData } from './services/arielBreadth';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
@@ -141,15 +144,17 @@ function ArielGuide() {
 }
 
 const TABS = [
-  { key: 'routine', label: '⚡ Routine' },
-  { key: 'breadth', label: 'Breadth' },
-  { key: 'ariel',   label: '📊 Ariel' },
-  { key: 'stage',   label: 'Stages' },
-  { key: 'groups',  label: 'Groups' },
-  { key: 'sectors', label: 'Sectors' },
-  { key: 'themes',  label: 'Themes' },
+  { key: 'routine',  label: '⚡ Routine' },
+  { key: 'breadth',  label: 'Breadth' },
+  { key: 'ariel',    label: '📊 Ariel' },
+  { key: 'stage',    label: 'Stages' },
+  { key: 'groups',   label: 'Groups' },
+  { key: 'sectors',  label: 'Sectors' },
+  { key: 'themes',   label: 'Themes' },
   { key: 'screener', label: 'Screener' },
-  { key: 'search',  label: '🔍 Search' },
+  { key: 'earnings', label: '📅 Earnings' },
+  { key: 'sec',      label: '📄 SEC' },
+  { key: 'search',   label: '🔍 Search' },
 ];
 
 // Filter stocks from stocksByTicker map by breadth criterion
@@ -179,6 +184,36 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState('routine');
   const [desktopTab, setDesktopTab] = useState('routine');
   const [theme, setTheme] = useState(() => localStorage.getItem('mp-theme') || 'dark');
+
+  // Clipboard state
+  const [clipboard, setClipboard] = useState({ long: [], short: [], universe: [] });
+  const [showClipboard, setShowClipboard] = useState(false);
+  const totalClipped = Object.values(clipboard).reduce((s, arr) => s + arr.length, 0);
+
+  const onClip = useCallback((ticker, name) => {
+    setClipboard(prev => {
+      const inLong     = prev.long.some(t => t.ticker === ticker);
+      const inShort    = prev.short.some(t => t.ticker === ticker);
+      const inUniverse = prev.universe.some(t => t.ticker === ticker);
+      const base = {
+        long:     prev.long.filter(t => t.ticker !== ticker),
+        short:    prev.short.filter(t => t.ticker !== ticker),
+        universe: prev.universe.filter(t => t.ticker !== ticker),
+      };
+      if (!inLong && !inShort && !inUniverse) return { ...base, long: [...base.long, { ticker, name }] };
+      if (inLong)  return { ...base, short: [...base.short, { ticker, name }] };
+      if (inShort) return { ...base, universe: [...base.universe, { ticker, name }] };
+      return base;
+    });
+  }, []);
+
+  const onClipRemove = useCallback((list, ticker) => {
+    setClipboard(prev => ({ ...prev, [list]: prev[list].filter(t => t.ticker !== ticker) }));
+  }, []);
+
+  const onClipClear = useCallback((list) => {
+    setClipboard(prev => ({ ...prev, [list]: [] }));
+  }, []);
 
   // Ariel Breadth (loaded on demand)
   const [arielRows, setArielRows] = useState(null);
@@ -313,7 +348,7 @@ export default function App() {
   }, []);
 
   if (view === 'leaders') {
-    return <LeadersView name={selectedName} stocks={leaders} onBack={() => setView('dashboard')} historyLoading={historyLoading} />;
+    return <LeadersView name={selectedName} stocks={leaders} onBack={() => setView('dashboard')} historyLoading={historyLoading} onClip={onClip} />;
   }
 
   // Loading skeleton
@@ -361,6 +396,26 @@ export default function App() {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            {/* Clipboard button */}
+            <button
+              onClick={() => setShowClipboard(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px', borderRadius: 8,
+                border: `1px solid ${showClipboard ? '#60a5fa' : 'var(--border)'}`,
+                background: showClipboard ? 'rgba(96,165,250,0.12)' : 'var(--bg-panel)',
+                color: showClipboard ? '#60a5fa' : 'var(--text-muted)',
+                fontSize: 12, fontWeight: 600, fontFamily: 'monospace', cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              📋 Clipboard
+              {totalClipped > 0 && (
+                <span style={{ background: '#60a5fa', color: '#000', borderRadius: 8, padding: '1px 5px', fontSize: 10, fontWeight: 700 }}>
+                  {totalClipped}
+                </span>
+              )}
+            </button>
             {/* Theme toggle */}
             <button
               className="theme-btn"
@@ -392,13 +447,15 @@ export default function App() {
           ))}
         </div>
         {/* Mobile tabs */}
-        <div className="flex sm:hidden border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex sm:hidden border-t" style={{ borderColor: 'var(--border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
           {TABS.map(tab => (
             <button key={tab.key} onClick={() => handleTabChange(tab.key, setMobileTab)}
-              className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                mobileTab === tab.key ? 'text-blue-400 border-b-2 border-blue-500' : ''
-              }`}
-              style={{ color: mobileTab === tab.key ? undefined : 'var(--text-muted)' }}>
+              style={{
+                flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: mobileTab === tab.key ? 700 : 500,
+                background: 'transparent', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                color: mobileTab === tab.key ? '#3b82f6' : 'var(--text-muted)',
+                borderBottom: mobileTab === tab.key ? '2px solid #3b82f6' : '2px solid transparent',
+              }}>
               {tab.label}
             </button>
           ))}
@@ -457,7 +514,13 @@ export default function App() {
           <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
         )}
         {desktopTab === 'screener' && (
-          <Screener stocksByTicker={stocksByTicker || {}} />
+          <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} />
+        )}
+        {desktopTab === 'earnings' && (
+          <EarningsCalendar stocksByTicker={stocksByTicker || {}} onClip={onClip} />
+        )}
+        {desktopTab === 'sec' && (
+          <SecFilings />
         )}
         {desktopTab === 'search' && (
           <StockSearch stocksByTicker={stocksByTicker || {}} />
@@ -466,6 +529,15 @@ export default function App() {
           Live data via Yahoo Finance · Weinstein Stage Method · S2: Price &gt; 50SMA &gt; 200SMA · S4: Price &lt; 50SMA &lt; 200SMA
         </p>
       </main>
+
+      {showClipboard && (
+        <ClipboardPanel
+          clipboard={clipboard}
+          onRemove={onClipRemove}
+          onClear={onClipClear}
+          onClose={() => setShowClipboard(false)}
+        />
+      )}
 
       {/* ── Mobile layout ── */}
       <div className="sm:hidden px-3 py-3">
@@ -478,7 +550,9 @@ export default function App() {
         {mobileTab === 'groups'  && industryGroupData && <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
         {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
-        {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} />}
+        {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} />}
+        {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={stocksByTicker || {}} onClip={onClip} />}
+        {mobileTab === 'sec'      && <SecFilings />}
         {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}
       </div>
     </div>
