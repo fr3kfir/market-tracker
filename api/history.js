@@ -29,9 +29,18 @@ export default async function handler(req, res) {
       list.map(async (sym) => {
         const chart = await yf.chart(sym, { period1, interval: '1d' }, { validateResult: false });
         if (!chart?.quotes?.length) return [sym, null];
-        const closes = chart.quotes.map(q => q.close);
-        const timestamps = chart.quotes.map(q => Math.floor(q.date.getTime() / 1000));
-        return [sym, { closes, timestamps }];
+        const valid = chart.quotes.filter(q => q.close != null);
+        const closes = valid.map(q => q.close);
+        const timestamps = valid.map(q => Math.floor(q.date.getTime() / 1000));
+        const ohlcv = valid.map(q => ({
+          time:   Math.floor(q.date.getTime() / 1000),
+          open:   q.open   ?? q.close,
+          high:   q.high   ?? q.close,
+          low:    q.low    ?? q.close,
+          close:  q.close,
+          volume: q.volume ?? 0,
+        }));
+        return [sym, { closes, timestamps, ohlcv }];
       })
     );
 

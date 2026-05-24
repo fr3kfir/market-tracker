@@ -210,8 +210,7 @@ export const INDUSTRY_GROUPS = [
   { name: 'Hardware — Servers',     sector: 'Technology',             tickers: ['DELL','HPE','NTAP','SMCI','PSTG','HPQ','WDC','NTNX','PURE','NVDA','AMD','ALAB','VRT','ARM','AAPL','MSFT','AVGO','MRVL','INTC','QCOM','IBM'] },
   { name: 'IT Services / Consult',  sector: 'Technology',             tickers: ['ACN','IBM','CTSH','EPAM','WIT','INFY','GLOB','CACI','SAIC','LDOS','DXC','UNISYS','KFRC','EXLS','NSIT','ASGN','HCKT','ICFI','PSNL'] },
   { name: 'Quantum Computing',      sector: 'Technology',             tickers: ['IONQ','QUBT','QBTS','RGTI','IBM','GOOGL','MSFT','NVDA','ARQQ','QTUM','HONQ','QMCO'] },
-  { name: 'AI Cloud / Infra',       sector: 'Technology',             tickers: ['NBIS','SMCI','ALAB','DOCN','CWAN','APLD','DDOG','SNOW','MDB','PLTR','NET','NVDA','MSFT','GOOGL','AMZN','META','AMD','VRT','DELL','HPE','ANET'] },
-  { name: 'IT Services / Consult',  sector: 'Technology',             tickers: ['ACN','IBM','CTSH','EPAM','WIT','INFY','GLOB','CACI','SAIC','LDOS','DXC','UNISYS','KFRC'] },
+  { name: 'AI Data Centers',        sector: 'Technology',             tickers: ['APLD','NBIS','VRT','SMCI','ALAB','DOCN','DELL','HPE','ANET','CWAN'] },
   // ── Energy ──
   { name: 'E&P — Major',            sector: 'Energy',                 tickers: ['XOM','CVX','COP','EOG','DVN','OXY','HES','APA','FANG','MRO','SU','CNQ','IMO','OVV','CHRD','PR','CTRA'] },
   { name: 'E&P — Independent',      sector: 'Energy',                 tickers: ['MRO','APA','FANG','OVV','CTRA','SM','MTDR','NOG','VTLE','CIVI','CHRD','RRC','EQT','AR','SWN','GPOR','PDCE'] },
@@ -295,7 +294,7 @@ const _HOT_THEMES_RAW = [
   // ── Semiconductors (broad) ──
   { name: 'Semiconductors',          etf: 'SOXX',  groups: ['Semis — AI / GPU', 'Semis — Memory', 'Semis — Equipment', 'Semis — Analog', 'Semis — Optics / Laser', 'Semis — Power'] },
   // ── AI & Compute ──
-  { name: 'AI Infrastructure',       etf: 'AIQ',   groups: ['Semis — AI / GPU', 'Hardware — Servers', 'Software — AI / Data', 'AI Cloud / Infra'] },
+  { name: 'AI Infrastructure',       etf: 'AIQ',   groups: ['Semis — AI / GPU', 'Hardware — Servers', 'Software — AI / Data', 'AI Data Centers'] },
   { name: 'AI Software',             etf: 'AIQ',   groups: ['Software — AI / Data', 'Software — Enterprise', 'Software — Cloud Infra'] },
   { name: 'Semis — Equipment',       etf: 'SOXX',  groups: ['Semis — Equipment'] },
   { name: 'Optics & Lasers',         etf: 'SOXX',  groups: ['Semis — Optics / Laser'] },
@@ -343,7 +342,7 @@ const _HOT_THEMES_RAW = [
   { name: 'Bitcoin & Crypto',        etf: 'BITO',  groups: ['Bitcoin & Crypto Mining'] },
   // ── Emerging Tech ──
   { name: 'Quantum Computing',       etf: 'QTUM',  groups: ['Quantum Computing'] },
-  { name: 'AI Cloud',                etf: 'AIQ',   groups: ['AI Cloud / Infra'] },
+  { name: 'AI Cloud',                etf: 'AIQ',   groups: ['AI Data Centers'] },
   // ── Nuclear & Uranium ──
   { name: 'Nuclear Power',           etf: 'NLR',   groups: ['Nuclear Power', 'Uranium'] },
 ];

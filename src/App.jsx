@@ -13,6 +13,7 @@ import ArielBreadthTable from './components/ArielBreadthTable';
 import ClipboardPanel from './components/ClipboardPanel';
 import SecFilings from './components/SecFilings';
 import EarningsCalendar from './components/EarningsCalendar';
+import HighLowScanner from './components/HighLowScanner';
 import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from './data/stockUniverse';
 import { fetchArielBreadthData } from './services/arielBreadth';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
@@ -152,6 +153,7 @@ const TABS = [
   { key: 'sectors',  label: 'Sectors' },
   { key: 'themes',   label: 'Themes' },
   { key: 'screener', label: 'Screener' },
+  { key: 'highs',    label: '📈 Highs/Lows' },
   { key: 'earnings', label: '📅 Earnings' },
   { key: 'sec',      label: '📄 SEC' },
   { key: 'search',   label: '🔍 Search' },
@@ -514,7 +516,10 @@ export default function App() {
           <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
         )}
         {desktopTab === 'screener' && (
-          <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} />
+          <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />
+        )}
+        {desktopTab === 'highs' && (
+          <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />
         )}
         {desktopTab === 'earnings' && (
           <EarningsCalendar stocksByTicker={stocksByTicker || {}} onClip={onClip} />
@@ -550,7 +555,8 @@ export default function App() {
         {mobileTab === 'groups'  && industryGroupData && <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
         {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
-        {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} />}
+        {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
+        {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={stocksByTicker || {}} onClip={onClip} />}
         {mobileTab === 'sec'      && <SecFilings />}
         {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}

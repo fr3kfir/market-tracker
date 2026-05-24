@@ -76,6 +76,12 @@ function processQuote(q, rsRatings) {
   const openPrice = q.regularMarketOpen;
   const changeFromOpen = openPrice ? Math.round(((price - openPrice) / openPrice) * 1000) / 10 : undefined;
 
+  // Intraday high / low
+  const dayHigh = q.regularMarketDayHigh;
+  const dayLow  = q.regularMarketDayLow;
+  const distDayHigh = dayHigh ? Math.round(((price - dayHigh) / dayHigh) * 1000) / 10 : undefined;
+  const distDayLow  = dayLow  ? Math.round(((price - dayLow)  / dayLow)  * 1000) / 10 : undefined;
+
   const marketCapB = q.marketCap       ? Math.round(q.marketCap       / 1e8) / 10 : undefined;
   const sharesOutB = q.sharesOutstanding ? Math.round(q.sharesOutstanding / 1e8) / 10 : undefined;
   const floatB     = q.floatShares      ? Math.round(q.floatShares      / 1e8) / 10 : undefined;
@@ -101,6 +107,10 @@ function processQuote(q, rsRatings) {
     stage,
     high52,
     low52,
+    dayHigh,
+    dayLow,
+    distDayHigh,
+    distDayLow,
     open: openPrice,
     // Fundamentals
     marketCapB,
