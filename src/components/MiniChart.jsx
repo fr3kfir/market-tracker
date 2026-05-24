@@ -1,4 +1,16 @@
-const RANGE_MAP = {
+// interval codes for the advanced-chart widget
+const INTERVAL_MAP = {
+  '1D': 'D',
+  '5D': 'D',   // 5-day range still uses daily candles
+  '1W': 'W',
+  '1M': 'D',
+  '3M': 'D',
+  '6M': 'D',
+  '1Y': 'W',
+};
+
+// date-range codes passed to the widget (withdateranges: true)
+const DATERANGE_MAP = {
   '1D': '1D',
   '5D': '5D',
   '1W': '5D',
@@ -8,32 +20,77 @@ const RANGE_MAP = {
   '1Y': '12M',
 };
 
-export default function MiniChart({ ticker, range = '3M', height = 200, chartOnly = false }) {
+/**
+ * MiniChart — TradingView Advanced Chart (candlesticks + MA50 + MA200 + Volume)
+ *
+ * Props:
+ *   ticker     – symbol, e.g. "AAPL"
+ *   range      – "1D" | "5D" | "1M" | "3M" | "6M" | "1Y"
+ *   height     – iframe height in px (default 370)
+ *   advanced   – use advanced-chart widget (default true)
+ *               false = fall back to mini-symbol-overview (line chart)
+ */
+export default function MiniChart({ ticker, range = '3M', height = 370, advanced = true }) {
+  if (!advanced) {
+    // Fallback: original mini price-line widget
+    const miniConfig = encodeURIComponent(JSON.stringify({
+      symbol: ticker, width: '100%', height,
+      locale: 'en',
+      dateRange: DATERANGE_MAP[range] ?? '3M',
+      colorTheme: 'dark', isTransparent: true,
+      autosize: false, chartOnly: false,
+    }));
+    return (
+      <iframe
+        key={`mini-${ticker}-${range}`}
+        title={`${ticker} chart`}
+        src={`https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#${miniConfig}`}
+        style={{ width: '100%', height, border: 'none', display: 'block' }}
+        allowTransparency="true"
+        loading="lazy"
+      />
+    );
+  }
+
+  // Advanced chart — candlesticks, MA50, MA200, Volume
   const config = encodeURIComponent(JSON.stringify({
-    symbol:        ticker,
-    width:         '100%',
+    symbol:              ticker,
+    interval:            INTERVAL_MAP[range] ?? 'D',
+    range:               DATERANGE_MAP[range] ?? '3M',
+    timezone:            'America/New_York',
+    theme:               'dark',
+    style:               '1',          // 1 = Candlestick
+    locale:              'en',
+    withdateranges:      false,        // hide built-in range bar (we control it externally)
+    hide_side_toolbar:   true,
+    allow_symbol_change: false,
+    save_image:          false,
+    calendar:            false,
+    hide_volume:         false,
+    support_host:        'https://www.tradingview.com',
+    // MA 50 + MA 200 as studies
+    studies: [
+      'MASimple@tv-basicstudies',      // MA 50
+      'MASimple@tv-basicstudies',      // MA 200 (TV shows both if specified twice)
+    ],
+    studies_overrides: {
+      'moving average.length': 50,
+    },
+    width:  '100%',
     height,
-    locale:        'en',
-    dateRange:     RANGE_MAP[range] ?? '3M',
-    colorTheme:    'dark',
-    isTransparent: true,
-    autosize:      false,
-    chartOnly,
-    noTimeScale:   false,
-    largeChartUrl: '',
+    autosize: false,
   }));
 
   return (
     <iframe
-      key={`${ticker}-${range}-${chartOnly}`}
+      key={`adv-${ticker}-${range}`}
       title={`${ticker} chart`}
-      src={`https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#${config}`}
+      src={`https://s.tradingview.com/embed-widget/advanced-chart/?locale=en#${config}`}
       style={{
-        width: '100%',
+        width:   '100%',
         height,
-        border: 'none',
+        border:  'none',
         display: 'block',
-        borderRadius: 4,
       }}
       allowTransparency="true"
       loading="lazy"

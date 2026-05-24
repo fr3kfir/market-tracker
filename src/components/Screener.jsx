@@ -9,14 +9,14 @@ const STAGE_COLORS = { S1: '#94a3b8', S2: '#60a5fa', S3: '#f59e0b', S4: '#f472b6
 const SECTORS = Object.keys(SECTOR_STOCKS);
 const FILTER_TABS = ['Descriptive', 'Fundamental', 'Technical', 'Performance'];
 
-// ── Chart ranges shown above the grid ──────────────────────────────────
+// ── Chart ranges shown above the grid (matching Ariel's 1h/4h/1D/1W/1M style) ──
 const CHART_RANGES = [
-  { key: '1D', label: 'D',   title: 'Intraday (today)' },
-  { key: '5D', label: '5D',  title: '5 days' },
-  { key: '1M', label: '1M',  title: '1 month' },
-  { key: '3M', label: '3M',  title: '3 months (default)' },
-  { key: '6M', label: '6M',  title: '6 months' },
-  { key: '1Y', label: '1Y',  title: '1 year (weekly view)' },
+  { key: '1D', label: '1D',  title: 'Daily candles — last day' },
+  { key: '5D', label: '5D',  title: '5-day view' },
+  { key: '1M', label: '1M',  title: '1 month daily candles' },
+  { key: '3M', label: '3M',  title: '3 months daily candles (default)' },
+  { key: '6M', label: '6M',  title: '6 months daily candles' },
+  { key: '1Y', label: '1Y',  title: '1 year weekly candles' },
 ];
 
 const CHARTS_PER_PAGE = 50; // Pagination
@@ -368,8 +368,8 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
         )}
       </div>
 
-      {/* TradingView chart — fills the card */}
-      <MiniChart ticker={stock.ticker} range={range} height={175} chartOnly={false} />
+      {/* TradingView Advanced Chart — candlesticks + MA50 + MA200 + Volume */}
+      <MiniChart ticker={stock.ticker} range={range} height={360} advanced={true} />
     </div>
   );
 }
@@ -770,11 +770,11 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
             </div>
           ) : (
             <>
-              {/* Grid — 4-5 cards per row */}
+              {/* Grid — 3 cards per row (matching Ariel's layout) */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                gap: 8,
+                gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+                gap: 10,
               }}>
                 {chartStocks.map(stock => {
                   const gi = tickerToGroupInfo[stock.ticker];
