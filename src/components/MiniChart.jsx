@@ -1,20 +1,27 @@
-// interval codes for the advanced-chart widget
+// interval = candle size (what the user controls via the timeframe buttons)
+// "1h" → 60-minute candles, "4h" → 240-minute candles, "1D" → daily, etc.
 const INTERVAL_MAP = {
+  '1h': '60',
+  '4h': '240',
   '1D': 'D',
-  '5D': 'D',   // 5-day range still uses daily candles
   '1W': 'W',
-  '1M': 'D',
+  '1M': 'M',
+  // legacy keys (kept for backward compat)
+  '5D': 'D',
   '3M': 'D',
   '6M': 'D',
   '1Y': 'W',
 };
 
-// date-range codes passed to the widget (withdateranges: true)
+// How much price history to show for each candle timeframe
 const DATERANGE_MAP = {
-  '1D': '1D',
+  '1h': '5D',
+  '4h': '5D',
+  '1D': '3M',
+  '1W': '12M',
+  '1M': '60M',
+  // legacy keys
   '5D': '5D',
-  '1W': '5D',
-  '1M': '1M',
   '3M': '3M',
   '6M': '6M',
   '1Y': '12M',

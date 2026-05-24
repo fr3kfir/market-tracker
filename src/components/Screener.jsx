@@ -9,14 +9,14 @@ const STAGE_COLORS = { S1: '#94a3b8', S2: '#60a5fa', S3: '#f59e0b', S4: '#f472b6
 const SECTORS = Object.keys(SECTOR_STOCKS);
 const FILTER_TABS = ['Descriptive', 'Fundamental', 'Technical', 'Performance'];
 
-// ── Chart ranges shown above the grid (matching Ariel's 1h/4h/1D/1W/1M style) ──
+// ── Timeframe buttons — control the CANDLE INTERVAL (like Ariel's tool) ──
+// Each key maps to a TradingView interval in MiniChart.jsx
 const CHART_RANGES = [
-  { key: '1D', label: '1D',  title: 'Daily candles — last day' },
-  { key: '5D', label: '5D',  title: '5-day view' },
-  { key: '1M', label: '1M',  title: '1 month daily candles' },
-  { key: '3M', label: '3M',  title: '3 months daily candles (default)' },
-  { key: '6M', label: '6M',  title: '6 months daily candles' },
-  { key: '1Y', label: '1Y',  title: '1 year weekly candles' },
+  { key: '1h', label: '1H', title: '1-Hour candles · 5 days of history' },
+  { key: '4h', label: '4H', title: '4-Hour candles · 5 days of history' },
+  { key: '1D', label: '1D', title: 'Daily candles · 3 months of history' },
+  { key: '1W', label: '1W', title: 'Weekly candles · 1 year of history' },
+  { key: '1M', label: '1M', title: 'Monthly candles · 5 years of history' },
 ];
 
 const CHARTS_PER_PAGE = 50; // Pagination
@@ -408,7 +408,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
   const [activePreset, setActivePreset] = useState(null);
   const [popupStock, setPopupStock]     = useState(null);
   const [viewMode, setViewMode]         = useState('list');
-  const [chartRange, setChartRange]     = useState('3M');
+  const [chartRange, setChartRange]     = useState('1D');
   const [page, setPage]                 = useState(0); // pagination for charts
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [savedScans, setSavedScans]     = useState(() => {
