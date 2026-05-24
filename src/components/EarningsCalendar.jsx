@@ -29,7 +29,7 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
 
   const today = new Date();
   const startDate = addDays(today, weekOffset * 7);
-  const endDate = addDays(startDate, 13); // 2-week window
+  const endDate = addDays(startDate, 27); // 4-week window
 
   const startStr = toDateStr(startDate);
   const endStr = toDateStr(endDate);
@@ -60,10 +60,10 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
   const totalCount = allEarningsStocks.length;
 
   const windowLabel = weekOffset === 0
-    ? 'Next 2 weeks'
+    ? 'Next 4 weeks'
     : weekOffset > 0
-    ? `+${weekOffset * 7}d — +${weekOffset * 7 + 13}d`
-    : `${weekOffset * 7}d — ${weekOffset * 7 + 13}d`;
+    ? `+${weekOffset * 7}d — +${weekOffset * 7 + 27}d`
+    : `${weekOffset * 7}d — ${weekOffset * 7 + 27}d`;
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
@@ -84,9 +84,21 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
 
       {/* No data state */}
       {grouped.length === 0 && (
-        <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: '48px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>
-          No earnings found for this period.
-          <div style={{ marginTop: 8, fontSize: 11 }}>Yahoo Finance may not yet have earnings dates for these stocks.</div>
+        <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: '48px 32px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>📭</div>
+          <div style={{ fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>No earnings found in this window</div>
+          <div style={{ fontSize: 11, lineHeight: 1.7, maxWidth: 440, margin: '0 auto' }}>
+            This may be an <strong>off-season</strong> period between earnings seasons.<br />
+            Q1 reports: <span style={{ color: '#60a5fa' }}>Apr–May</span> · Q2: <span style={{ color: '#60a5fa' }}>Jul–Aug</span> · Q3: <span style={{ color: '#60a5fa' }}>Oct–Nov</span> · Q4: <span style={{ color: '#60a5fa' }}>Jan–Feb</span>
+          </div>
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button onClick={() => setWeekOffset(w => w + 1)} style={{ padding: '6px 16px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 8, border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', cursor: 'pointer' }}>
+              Check next month →
+            </button>
+            <button onClick={() => setWeekOffset(w => w - 1)} style={{ padding: '6px 16px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              ← Check last month
+            </button>
+          </div>
         </div>
       )}
 

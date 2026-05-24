@@ -127,10 +127,15 @@ function processQuote(q, rsRatings) {
     divYield: q.trailingAnnualDividendYield != null ? Math.round(q.trailingAnnualDividendYield * 1000) / 10 : undefined,
     beta: q.beta != null ? Math.round(q.beta * 100) / 100 : undefined,
     earningsDate: (() => {
-      const ts = q.earningsTimestampStart;
-      if (!ts) return undefined;
-      const d = ts instanceof Date ? ts : new Date(ts * 1000);
-      return isNaN(d) ? undefined : d.toISOString().slice(0, 10);
+      // Try earningsTimestamp first (actual report date), fall back to Start/End
+      const raw = q.earningsTimestamp ?? q.earningsTimestampStart ?? q.earningsTimestampEnd;
+      if (raw == null) return undefined;
+      // yahoo-finance2 may return a Date object or a Unix seconds integer
+      const d = raw instanceof Date ? raw : new Date(
+        raw > 1e10 ? raw : raw * 1000   // if already ms, use as-is; else convert from seconds
+      );
+      if (isNaN(d.getTime())) return undefined;
+      return d.toISOString().slice(0, 10);
     })(),
   };
 }
