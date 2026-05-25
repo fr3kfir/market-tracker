@@ -1,24 +1,105 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const FORM_FILTERS = ['All', '8-K', '10-K', '10-Q', 'S-1'];
 const FORM_COLORS  = { '8-K': '#f59e0b', '10-K': '#60a5fa', '10-Q': '#34d399', 'S-1': '#e879f9' };
 const REFRESH_SECS = 60;
 
+// Title + one-line description + detailed explanation for each form type
+const FORM_INFO = {
+  '8-K': {
+    icon: '📢',
+    title: 'Material Event',
+    short: 'Major company news filed within 4 days',
+    detail: 'Filed when something big happens: earnings release, CEO change, acquisition, bankruptcy, stock split, or any event shareholders must know about immediately.',
+  },
+  '10-K': {
+    icon: '📋',
+    title: 'Annual Report',
+    short: 'Full-year financial statements & outlook',
+    detail: 'The most comprehensive company filing. Includes 12-month income statement, balance sheet, cash flows, risk factors, and management discussion. Filed once per year.',
+  },
+  '10-Q': {
+    icon: '📊',
+    title: 'Quarterly Report',
+    short: 'Q1/Q2/Q3 financial snapshot',
+    detail: 'A lighter version of the 10-K filed for each of the first 3 fiscal quarters. Shows revenue, earnings, and any material changes since the last annual report. Q4 is covered by the 10-K.',
+  },
+  'S-1': {
+    icon: '🚀',
+    title: 'IPO Registration',
+    short: 'Company going public for the first time',
+    detail: 'Filed before a company\'s IPO. Contains the business model, financials, risk factors, and proposed share price range. Reading the S-1 is essential before buying any newly public company.',
+  },
+};
+
 function FormBadge({ form }) {
   const color = FORM_COLORS[form] || '#94a3b8';
+  const info  = FORM_INFO[form];
   return (
-    <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>
-      {form}
-    </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4, width: 'fit-content' }}>
+        {form}
+      </span>
+      {info && (
+        <span style={{ fontSize: 9, color: color, opacity: 0.7, fontFamily: 'monospace', paddingLeft: 2 }}>
+          {info.icon} {info.title}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Legend card shown above the list
+function FilingLegend({ activeFilter }) {
+  const [expanded, setExpanded] = useState(false);
+  const forms = activeFilter === 'All' ? Object.keys(FORM_INFO) : [activeFilter].filter(f => FORM_INFO[f]);
+
+  return (
+    <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, marginBottom: 14, overflow: 'hidden' }}>
+      <button
+        onClick={() => setExpanded(e => !e)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+      >
+        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#475569' }}>
+          📖 What are these filings?
+        </span>
+        <span style={{ fontSize: 14, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'none' }}>⌄</span>
+      </button>
+
+      {expanded && (
+        <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid #1e293b' }}>
+          <div style={{ height: 10 }} />
+          {forms.map(f => {
+            const info  = FORM_INFO[f];
+            const color = FORM_COLORS[f] || '#94a3b8';
+            return (
+              <div key={f} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ flexShrink: 0, marginTop: 2 }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 8px', borderRadius: 4 }}>{f}</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 2 }}>
+                    {info.icon} {info.title} <span style={{ fontSize: 10, fontWeight: 400, color: '#64748b' }}>— {info.short}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>{info.detail}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function SecFilings() {
-  const [filings, setFilings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const isMobile = useIsMobile();
+  const [filings, setFilings]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
   const [formFilter, setFormFilter] = useState('All');
-  const [countdown, setCountdown] = useState(REFRESH_SECS);
+  const [countdown, setCountdown]   = useState(REFRESH_SECS);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const countdownRef = useRef(REFRESH_SECS);
 
@@ -39,10 +120,8 @@ export default function SecFilings() {
     }
   }, [formFilter]);
 
-  // Load on mount and when filter changes
   useEffect(() => { load(); }, [load]);
 
-  // Countdown + auto-refresh
   useEffect(() => {
     countdownRef.current = REFRESH_SECS;
     setCountdown(REFRESH_SECS);
@@ -57,49 +136,57 @@ export default function SecFilings() {
     return () => clearInterval(id);
   }, [load]);
 
-  const popOut = () => {
-    const w = window.open(window.location.href, '_blank', 'width=980,height=680,menubar=no,toolbar=no,scrollbars=yes');
-    if (w) w.focus();
-  };
-
   const displayed = filings.filter(f => formFilter === 'All' || f.form === formFilter);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '0 4px' : 0 }}>
+
       {/* Header bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {/* Form type filter buttons */}
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {FORM_FILTERS.map(f => (
-            <button
-              key={f}
-              onClick={() => setFormFilter(f)}
-              style={{
-                padding: '5px 14px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
-                borderRadius: 20, border: '1px solid', cursor: 'pointer', transition: 'all 0.15s',
-                borderColor: formFilter === f ? (FORM_COLORS[f] || '#3b82f6') : 'var(--border)',
-                background:  formFilter === f ? `${FORM_COLORS[f] || '#3b82f6'}1A` : 'transparent',
-                color:       formFilter === f ? (FORM_COLORS[f] || '#60a5fa') : 'var(--text-muted)',
-              }}
-            >{f}</button>
-          ))}
+          {FORM_FILTERS.map(f => {
+            const color = FORM_COLORS[f] || '#3b82f6';
+            const active = formFilter === f;
+            return (
+              <button
+                key={f}
+                onClick={() => setFormFilter(f)}
+                style={{
+                  padding: isMobile ? '5px 10px' : '5px 14px',
+                  fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
+                  borderRadius: 20, border: '1px solid', cursor: 'pointer', transition: 'all 0.15s',
+                  borderColor: active ? color : 'var(--border)',
+                  background:  active ? `${color}1A` : 'transparent',
+                  color:       active ? color : 'var(--text-muted)',
+                }}
+              >
+                {f !== 'All' && FORM_INFO[f] ? `${FORM_INFO[f].icon} ${f}` : f}
+              </button>
+            );
+          })}
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Countdown badge */}
+        {/* Status + pop-out */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: 'monospace', color: 'var(--text-faint)', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px' }}>
             <span style={{ color: loading ? '#f59e0b' : '#34d399' }}>{loading ? '⟳' : '✓'}</span>
-            <span>{loading ? 'Loading…' : `Next in ${countdown}s`}</span>
+            <span>{loading ? 'Loading…' : `${countdown}s`}</span>
             {!loading && <span style={{ color: 'var(--border)' }}>·</span>}
             {!loading && <span>{lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>}
           </div>
-          {/* Pop-out */}
-          <button
-            onClick={popOut}
-            title="Open in separate window"
-            style={{ padding: '5px 10px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-panel)', color: 'var(--text-muted)', cursor: 'pointer' }}
-          >⧉ Pop-out</button>
+          {!isMobile && (
+            <button
+              onClick={() => { const w = window.open(window.location.href, '_blank', 'width=980,height=680,menubar=no,toolbar=no,scrollbars=yes'); if (w) w.focus(); }}
+              title="Open in separate window"
+              style={{ padding: '5px 10px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-panel)', color: 'var(--text-muted)', cursor: 'pointer' }}
+            >⧉</button>
+          )}
         </div>
       </div>
+
+      {/* Filing legend (expandable) */}
+      <FilingLegend activeFilter={formFilter} />
 
       {/* Error */}
       {error && (
@@ -109,7 +196,7 @@ export default function SecFilings() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Filing list */}
       <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         {loading && filings.length === 0 ? (
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>Loading SEC filings…</div>
@@ -117,33 +204,72 @@ export default function SecFilings() {
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>No filings found</div>
         ) : (
           <div>
-            {/* Table header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px 80px', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', opacity: 0.6 }}>
-              {['Form', 'Company', 'Date', ''].map(h => (
-                <span key={h} style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', fontFamily: 'monospace' }}>{h}</span>
-              ))}
-            </div>
-
-            {displayed.map((f, i) => (
-              <div
-                key={i}
-                style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px 80px', gap: 8, padding: '11px 16px', borderBottom: '1px solid var(--border)', alignItems: 'center', transition: 'background 0.1s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-              >
-                <div><FormBadge form={f.form} /></div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.company}</div>
-                <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</div>
-                <div>
-                  <a
-                    href={f.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: 'rgba(59,130,246,0.12)', color: '#60a5fa', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(59,130,246,0.25)' }}
-                  >View ↗</a>
-                </div>
+            {/* Table header — desktop only */}
+            {!isMobile && (
+              <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', opacity: 0.5 }}>
+                {['Form', 'Company', 'Date', ''].map(h => (
+                  <span key={h} style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', fontFamily: 'monospace' }}>{h}</span>
+                ))}
               </div>
-            ))}
+            )}
+
+            {displayed.map((f, i) => {
+              const info  = FORM_INFO[f.form];
+              const color = FORM_COLORS[f.form] || '#94a3b8';
+              return isMobile ? (
+                // ── Mobile card row ──
+                <div
+                  key={i}
+                  style={{ padding: '12px 14px', borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.1s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  {/* Row 1: Form badge + date */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4 }}>{f.form}</span>
+                      {info && <span style={{ fontSize: 10, color, opacity: 0.8 }}>{info.icon} {info.title}</span>}
+                    </div>
+                    <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</span>
+                  </div>
+                  {/* Row 2: Company name */}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.company}</div>
+                  {/* Row 3: Filing description + link */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    {info && <div style={{ fontSize: 10, color: '#475569', flex: 1 }}>{info.short}</div>}
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700, textDecoration: 'none', border: `1px solid ${color}25`, flexShrink: 0 }}
+                    >View ↗</a>
+                  </div>
+                </div>
+              ) : (
+                // ── Desktop table row ──
+                <div
+                  key={i}
+                  style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '11px 16px', borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'center', transition: 'background 0.1s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <FormBadge form={f.form} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>{f.company}</div>
+                    {info && <div style={{ fontSize: 10, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{info.short}</div>}
+                  </div>
+                  <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</div>
+                  <div>
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: `1px solid ${color}25` }}
+                    >View ↗</a>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
