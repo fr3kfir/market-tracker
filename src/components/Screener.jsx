@@ -250,7 +250,7 @@ function SortTh({ label, col, sortKey, sortDir, onSort, align = 'right', title }
   );
 }
 
-function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName }) {
+function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, showMiniCharts, chartRange }) {
   const [hover, setHover] = useState(false);
   return (
     <tr
@@ -271,6 +271,12 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName })
           {stock.ticker}
         </span>
       </td>
+      {/* Inline mini sparkline chart */}
+      {showMiniCharts && (
+        <td style={{ padding: '2px 4px', width: 200 }} onClick={e => e.stopPropagation()}>
+          <MiniChart ticker={stock.ticker} range={chartRange || '1D'} height={90} advanced={false} />
+        </td>
+      )}
       <td style={{ padding: '7px 10px', fontSize: 11, color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stock.name || '—'}</td>
       <td style={{ padding: '7px 10px', whiteSpace: 'nowrap' }}>
         {groupRank ? (
@@ -308,11 +314,17 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName })
   );
 }
 
-// ── Clean Mini Chart Card (Ariel-style) ─────────────────────────────────
-// Minimal header: ticker + daily % only. Chart fills the card.
+// ── Chart Card (Finviz-style) ────────────────────────────────────────────
+// Compact header row: ticker, change%, RS, stage, group rank, EXPAND button.
+// Then a full TradingView advanced chart (candlesticks + MA50 + MA200 + Volume).
 function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupName }) {
   const change = stock.change ?? 0;
   const changeColor = change >= 0 ? '#34d399' : '#f87171';
+
+  const openTradingView = (e) => {
+    e.stopPropagation();
+    window.open(`https://www.tradingview.com/chart/?symbol=${stock.ticker}`, '_blank', 'noopener');
+  };
 
   return (
     <div
@@ -323,53 +335,62 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
         borderRadius: 8, overflow: 'hidden',
         display: 'flex', flexDirection: 'column',
         cursor: onClip ? 'pointer' : 'default',
-        transition: 'border-color 0.12s, transform 0.12s',
+        transition: 'border-color 0.12s',
         userSelect: 'none',
       }}
-      onMouseEnter={e => { if (!cs) { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-      onMouseLeave={e => { if (!cs) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = ''; } }}
+      onMouseEnter={e => { if (!cs) e.currentTarget.style.borderColor = '#3b82f6'; }}
+      onMouseLeave={e => { if (!cs) e.currentTarget.style.borderColor = 'var(--border)'; }}
     >
-      {/* Compact header: ticker + % + optional badge */}
-      <div style={{ padding: '7px 9px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-          {/* Clip dot */}
-          {cs && <span style={{ width: 6, height: 6, borderRadius: '50%', background: CLIP_COLORS[cs], flexShrink: 0 }} />}
-          {/* Ticker — click separately to open popup */}
-          <span
-            onClick={e => { e.stopPropagation(); onTickerClick(stock); }}
-            style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: cs ? CLIP_COLORS[cs] : '#e2e8f0', cursor: 'pointer', lineHeight: 1 }}
-          >{stock.ticker}</span>
-          {/* Stage */}
-          {stock.stage && (
-            <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: STAGE_COLORS[stock.stage], background: `${STAGE_COLORS[stock.stage]}22`, padding: '1px 4px', borderRadius: 3, flexShrink: 0 }}>
-              {stock.stage}
-            </span>
-          )}
-        </div>
-        {/* Right side: change % */}
-        <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: changeColor, flexShrink: 0 }}>
-          {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-        </span>
-      </div>
-
-      {/* RS + Group rank on one tight line */}
-      <div style={{ paddingLeft: 9, paddingBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+      {/* One-line compact header */}
+      <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.2)' }}>
+        {/* Clip dot */}
+        {cs && <span style={{ width: 6, height: 6, borderRadius: '50%', background: CLIP_COLORS[cs], flexShrink: 0 }} />}
+        {/* Ticker */}
+        <span
+          onClick={e => { e.stopPropagation(); onTickerClick(stock); }}
+          style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: cs ? CLIP_COLORS[cs] : '#e2e8f0', cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
+        >{stock.ticker}</span>
+        {/* Stage */}
+        {stock.stage && (
+          <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: STAGE_COLORS[stock.stage], background: `${STAGE_COLORS[stock.stage]}22`, padding: '1px 4px', borderRadius: 3, flexShrink: 0 }}>
+            {stock.stage}
+          </span>
+        )}
+        {/* RS */}
         {stock.rs != null && (
-          <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: RS_COLOR(stock.rs), background: RS_COLOR(stock.rs) + '18', padding: '0px 4px', borderRadius: 3 }}>
+          <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: RS_COLOR(stock.rs), background: RS_COLOR(stock.rs) + '18', padding: '1px 4px', borderRadius: 3, flexShrink: 0 }}>
             RS {stock.rs}
           </span>
         )}
+        {/* Group rank */}
         {groupRank && (
           <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700,
             color: groupRank <= 10 ? '#f59e0b' : groupRank <= 20 ? '#34d399' : '#3b82f6',
             background: (groupRank <= 10 ? '#f59e0b' : groupRank <= 20 ? '#34d399' : '#3b82f6') + '18',
-            padding: '0px 4px', borderRadius: 3,
-          }} title={groupName}>Grp #{groupRank}</span>
+            padding: '1px 4px', borderRadius: 3, flexShrink: 0,
+          }} title={groupName}>#{groupRank}</span>
         )}
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+        {/* Change % */}
+        <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: changeColor, flexShrink: 0 }}>
+          {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+        </span>
+        {/* EXPAND → open TradingView */}
+        <button
+          onClick={openTradingView}
+          title="Open full chart on TradingView"
+          style={{
+            padding: '2px 6px', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
+            borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)',
+            background: 'rgba(255,255,255,0.06)', color: '#94a3b8', cursor: 'pointer',
+            flexShrink: 0, lineHeight: 1.4,
+          }}
+        >EXPAND ↗</button>
       </div>
 
       {/* TradingView Advanced Chart — candlesticks + MA50 + MA200 + Volume */}
-      <MiniChart ticker={stock.ticker} range={range} height={360} advanced={true} />
+      <MiniChart ticker={stock.ticker} range={range} height={320} advanced={true} />
     </div>
   );
 }
@@ -409,6 +430,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
   const [popupStock, setPopupStock]     = useState(null);
   const [viewMode, setViewMode]         = useState('list');
   const [chartRange, setChartRange]     = useState('1D');
+  const [showMiniCharts, setShowMiniCharts] = useState(false); // inline sparklines in list view
   const [page, setPage]                 = useState(0); // pagination for charts
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [savedScans, setSavedScans]     = useState(() => {
@@ -684,7 +706,38 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
           ))}
         </div>
 
-        {/* Range pills — always visible above chart grid */}
+        {/* Mini chart toggle (list view only) + timeframe */}
+        {viewMode === 'list' && (
+          <>
+            <button
+              onClick={() => setShowMiniCharts(v => !v)}
+              title="Show inline sparkline charts in each row"
+              style={{
+                padding: '5px 13px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
+                borderRadius: 6, border: '1px solid', cursor: 'pointer', transition: 'all 0.12s',
+                borderColor: showMiniCharts ? '#a78bfa' : 'var(--border)',
+                background:  showMiniCharts ? 'rgba(167,139,250,0.15)' : 'transparent',
+                color:       showMiniCharts ? '#a78bfa' : 'var(--text-muted)',
+              }}>
+              📈 {showMiniCharts ? 'Hide charts' : 'Show charts'}
+            </button>
+            {showMiniCharts && (
+              <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                {CHART_RANGES.map(r => (
+                  <button key={r.key} onClick={() => setChartRange(r.key)} title={r.title} style={{
+                    padding: '3px 9px', fontSize: 10, fontFamily: 'monospace', fontWeight: 700,
+                    borderRadius: 5, border: '1px solid', cursor: 'pointer', transition: 'all 0.12s',
+                    borderColor: chartRange === r.key ? '#a78bfa' : 'var(--border)',
+                    background:  chartRange === r.key ? 'rgba(167,139,250,0.2)' : 'transparent',
+                    color:       chartRange === r.key ? '#a78bfa' : 'var(--text-muted)',
+                  }}>{r.label}</button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Range pills — charts view only */}
         {viewMode === 'charts' && (
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {CHART_RANGES.map(r => (
@@ -720,10 +773,15 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       {viewMode === 'list' && (
         <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: showMiniCharts ? 1180 : 980 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <SortTh label="Ticker"    col="ticker"         align="left" {...thProps} />
+                  {showMiniCharts && (
+                    <th style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#a78bfa', fontFamily: 'monospace', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em', width: 200 }}>
+                      Chart ({chartRange})
+                    </th>
+                  )}
                   <th style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'monospace', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</th>
                   <SortTh label="Group"     col="groupRank"      align="left" title="Industry Group Rank" {...thProps} />
                   <SortTh label="Price"     col="price"          {...thProps} />
@@ -741,13 +799,14 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
               </thead>
               <tbody>
                 {sorted.length === 0 ? (
-                  <tr><td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
+                  <tr><td colSpan={showMiniCharts ? 15 : 14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
                 ) : sorted.map((stock, i) => {
                   const gi = tickerToGroupInfo[stock.ticker];
                   return (
                     <StockRow key={stock.ticker} stock={stock} i={i}
                       onTickerClick={setPopupStock} cs={clipState(stock.ticker)} onClip={onClip}
-                      groupRank={gi?.rank} groupName={gi?.name} />
+                      groupRank={gi?.rank} groupName={gi?.name}
+                      showMiniCharts={showMiniCharts} chartRange={chartRange} />
                   );
                 })}
               </tbody>

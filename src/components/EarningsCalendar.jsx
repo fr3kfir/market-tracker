@@ -16,11 +16,17 @@ function toDateStr(date) {
 
 function formatDateLabel(dateStr) {
   const d = new Date(dateStr + 'T12:00:00Z');
-  const today = toDateStr(new Date());
+  const today    = toDateStr(new Date());
   const tomorrow = toDateStr(addDays(new Date(), 1));
-  if (dateStr === today) return 'Today';
-  if (dateStr === tomorrow) return 'Tomorrow';
+  const yesterday = toDateStr(addDays(new Date(), -1));
+  if (dateStr === today)     return '📅 Today';
+  if (dateStr === tomorrow)  return 'Tomorrow';
+  if (dateStr === yesterday) return 'Yesterday';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function isPast(dateStr) {
+  return dateStr < toDateStr(new Date());
 }
 
 export default function EarningsCalendar({ stocksByTicker, onClip }) {
@@ -28,11 +34,17 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
   const [popupStock, setPopupStock] = useState(null);
 
   const today = new Date();
-  const startDate = addDays(today, weekOffset * 7);
-  const endDate = addDays(startDate, 27); // 4-week window
+  // Default window: 7 days ago → today + 20 days (so we catch recently-reported + upcoming)
+  // With weekOffset: shift the window by 7 days
+  const windowStart = weekOffset === 0
+    ? addDays(today, -7)           // week 0: show past week + next 20 days
+    : addDays(today, weekOffset * 7);  // other weeks: future windows
+  const windowEnd = weekOffset === 0
+    ? addDays(today, 20)           // week 0: 27-day window centered on now
+    : addDays(windowStart, 27);    // other weeks: strict 4-week future
 
-  const startStr = toDateStr(startDate);
-  const endStr = toDateStr(endDate);
+  const startStr = toDateStr(windowStart);
+  const endStr   = toDateStr(windowEnd);
 
   const grouped = useMemo(() => {
     const allStocks = Object.values(stocksByTicker);
@@ -53,14 +65,17 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
       .map(([date, stocks]) => ({
         date,
         stocks: [...stocks].sort((a, b) => (b.rs || 0) - (a.rs || 0)),
+        isReported: isPast(date),
       }));
   }, [stocksByTicker, startStr, endStr]);
 
   const allEarningsStocks = useMemo(() => grouped.flatMap(g => g.stocks), [grouped]);
-  const totalCount = allEarningsStocks.length;
+  const totalCount        = allEarningsStocks.length;
+  const upcomingCount     = grouped.filter(g => !g.isReported).reduce((s, g) => s + g.stocks.length, 0);
+  const recentCount       = grouped.filter(g => g.isReported).reduce((s, g)  => s + g.stocks.length, 0);
 
   const windowLabel = weekOffset === 0
-    ? 'Next 4 weeks'
+    ? 'Current window'
     : weekOffset > 0
     ? `+${weekOffset * 7}d — +${weekOffset * 7 + 27}d`
     : `${weekOffset * 7}d — ${weekOffset * 7 + 27}d`;
@@ -74,11 +89,24 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
           <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text)', fontWeight: 600, minWidth: 130, textAlign: 'center' }}>{windowLabel}</span>
           <button onClick={() => setWeekOffset(w => w + 1)} style={{ padding: '5px 12px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-panel)', color: 'var(--text-muted)', cursor: 'pointer' }}>→</button>
           {weekOffset !== 0 && (
-            <button onClick={() => setWeekOffset(0)} style={{ padding: '4px 10px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 20, border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', cursor: 'pointer' }}>Today</button>
+            <button onClick={() => setWeekOffset(0)} style={{ padding: '4px 10px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 20, border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', cursor: 'pointer' }}>Now</button>
+          )}
+        </div>
+        {/* Summary badges */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {upcomingCount > 0 && (
+            <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#60a5fa', background: 'rgba(59,130,246,0.12)', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
+              🔔 {upcomingCount} upcoming
+            </span>
+          )}
+          {recentCount > 0 && (
+            <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#94a3b8', background: 'rgba(148,163,184,0.1)', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
+              ✓ {recentCount} reported
+            </span>
           )}
         </div>
         <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'monospace', color: 'var(--text-faint)' }}>
-          {totalCount} report{totalCount !== 1 ? 's' : ''} found
+          {totalCount} total
         </span>
       </div>
 
@@ -87,29 +115,38 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
         <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: '48px 32px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>
           <div style={{ fontSize: 28, marginBottom: 10 }}>📭</div>
           <div style={{ fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>No earnings found in this window</div>
-          <div style={{ fontSize: 11, lineHeight: 1.7, maxWidth: 440, margin: '0 auto' }}>
-            This may be an <strong>off-season</strong> period between earnings seasons.<br />
-            Q1 reports: <span style={{ color: '#60a5fa' }}>Apr–May</span> · Q2: <span style={{ color: '#60a5fa' }}>Jul–Aug</span> · Q3: <span style={{ color: '#60a5fa' }}>Oct–Nov</span> · Q4: <span style={{ color: '#60a5fa' }}>Jan–Feb</span>
+          <div style={{ fontSize: 11, lineHeight: 1.7, maxWidth: 480, margin: '0 auto' }}>
+            Earnings data is loading from Yahoo Finance — it may take 30–60 seconds on first load.<br/>
+            <span style={{ color: '#94a3b8' }}>Earnings seasons: </span>
+            <span style={{ color: '#60a5fa' }}>Q1: Apr–May</span> · <span style={{ color: '#60a5fa' }}>Q2: Jul–Aug</span> · <span style={{ color: '#60a5fa' }}>Q3: Oct–Nov</span> · <span style={{ color: '#60a5fa' }}>Q4: Jan–Feb</span><br/>
+            Try the <strong>→</strong> button to browse future weeks.
           </div>
           <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center' }}>
             <button onClick={() => setWeekOffset(w => w + 1)} style={{ padding: '6px 16px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 8, border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', cursor: 'pointer' }}>
               Check next month →
             </button>
-            <button onClick={() => setWeekOffset(w => w - 1)} style={{ padding: '6px 16px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>
-              ← Check last month
-            </button>
+            {weekOffset !== 0 && (
+              <button onClick={() => setWeekOffset(0)} style={{ padding: '6px 16px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                ← Back to now
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {/* Date groups */}
-      {grouped.map(({ date, stocks }) => (
-        <div key={date} style={{ marginBottom: 20 }}>
+      {grouped.map(({ date, stocks, isReported }) => (
+        <div key={date} style={{ marginBottom: 20, opacity: isReported ? 0.65 : 1 }}>
           {/* Date header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', fontFamily: 'monospace' }}>{formatDateLabel(date)}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: isReported ? 'var(--text-muted)' : 'var(--text)', fontFamily: 'monospace' }}>{formatDateLabel(date)}</span>
             <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>{date}</span>
-            <span style={{ fontSize: 10, color: '#3b82f6', fontFamily: 'monospace', background: 'rgba(59,130,246,0.12)', padding: '1px 7px', borderRadius: 20 }}>{stocks.length} cos.</span>
+            <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, padding: '1px 7px', borderRadius: 20,
+              color: isReported ? '#94a3b8' : '#3b82f6',
+              background: isReported ? 'rgba(148,163,184,0.12)' : 'rgba(59,130,246,0.12)',
+            }}>
+              {isReported ? `✓ ${stocks.length} reported` : `${stocks.length} cos.`}
+            </span>
           </div>
 
           {/* Stocks table */}
@@ -117,13 +154,17 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
             {stocks.map((s, i) => (
               <div
                 key={s.ticker}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < stocks.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
+                  borderBottom: i < stocks.length - 1 ? '1px solid var(--border)' : 'none',
+                  cursor: 'pointer', transition: 'background 0.1s',
+                }}
                 onClick={() => setPopupStock(s)}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.05)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 {/* Ticker */}
-                <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: '#60a5fa', minWidth: 60 }}>{s.ticker}</span>
+                <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: isReported ? '#94a3b8' : '#60a5fa', minWidth: 60 }}>{s.ticker}</span>
 
                 {/* Company name */}
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
@@ -164,7 +205,7 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
       ))}
 
       <p style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-faint)', marginTop: 10, fontFamily: 'monospace' }}>
-        Earnings dates from Yahoo Finance · Click any stock to open chart + details
+        Earnings dates from Yahoo Finance calendarEvents · Refreshed every 30 min · Click any stock to open chart
       </p>
 
       {popupStock && (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import MarketBreadth from './components/MarketBreadth';
 import MarketTicker from './components/MarketTicker';
 import StageOverview from './components/StageOverview';
@@ -18,6 +18,18 @@ import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, A
 import { fetchArielBreadthData } from './services/arielBreadth';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
 import './index.css';
+
+// ── Earnings calendar helpers ──────────────────────────────────────────
+/** Fetch upcoming earnings dates from the dedicated /api/earnings endpoint */
+async function fetchEarningsData(allSymbols) {
+  try {
+    const r = await fetch(`/api/earnings?symbols=${allSymbols.join(',')}`);
+    if (!r.ok) return {};
+    return await r.json();
+  } catch {
+    return {};
+  }
+}
 
 const REFRESH_SECS = 5;
 
@@ -217,6 +229,10 @@ export default function App() {
     setClipboard(prev => ({ ...prev, [list]: [] }));
   }, []);
 
+  // Earnings calendar — fetched once on mount, refreshed hourly
+  const [earningsData, setEarningsData]     = useState({});
+  const earningsLoadedRef                   = useRef(false);
+
   // Ariel Breadth (loaded on demand)
   const [arielRows, setArielRows] = useState(null);
   const [arielLoading, setArielLoading] = useState(false);
@@ -259,6 +275,20 @@ export default function App() {
 
   // Initial load
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Load earnings data once on mount (cached 1h server-side, refresh every 30min client-side)
+  useEffect(() => {
+    const load = async () => {
+      const allSyms = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])];
+      const data = await fetchEarningsData(allSyms);
+      setEarningsData(data);
+      earningsLoadedRef.current = true;
+    };
+    load();
+    // Refresh every 30 minutes
+    const id = setInterval(load, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Countdown tick + auto-refresh
   useEffect(() => {
@@ -382,6 +412,22 @@ export default function App() {
   }
 
   const { breadth, sectorData, stageDist, stageHistory, themeData, industryGroupData, stocksByTicker, hotThemeData } = marketData || {};
+
+  // Merge richer earnings dates from the dedicated API into stocksByTicker
+  // earningsData = { TICKER: 'YYYY-MM-DD' } from /api/earnings
+  const enrichedStocksByTicker = useMemo(() => {
+    if (!stocksByTicker || Object.keys(earningsData).length === 0) return stocksByTicker || {};
+    const merged = { ...stocksByTicker };
+    Object.entries(earningsData).forEach(([ticker, date]) => {
+      if (merged[ticker]) {
+        // Only override if the dedicated endpoint found a date, or the quote didn't have one
+        if (!merged[ticker].earningsDate || date) {
+          merged[ticker] = { ...merged[ticker], earningsDate: date };
+        }
+      }
+    });
+    return merged;
+  }, [stocksByTicker, earningsData]);
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -522,7 +568,7 @@ export default function App() {
           <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />
         )}
         {desktopTab === 'earnings' && (
-          <EarningsCalendar stocksByTicker={stocksByTicker || {}} onClip={onClip} />
+          <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />
         )}
         {desktopTab === 'sec' && (
           <SecFilings />
@@ -557,7 +603,7 @@ export default function App() {
         {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
-        {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={stocksByTicker || {}} onClip={onClip} />}
+        {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
         {mobileTab === 'sec'      && <SecFilings />}
         {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}
       </div>
