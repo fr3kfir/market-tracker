@@ -127,15 +127,29 @@ function processQuote(q, rsRatings) {
     divYield: q.trailingAnnualDividendYield != null ? Math.round(q.trailingAnnualDividendYield * 1000) / 10 : undefined,
     beta: q.beta != null ? Math.round(q.beta * 100) / 100 : undefined,
     earningsDate: (() => {
-      // Try earningsTimestamp first (actual report date), fall back to Start/End
-      const raw = q.earningsTimestamp ?? q.earningsTimestampStart ?? q.earningsTimestampEnd;
-      if (raw == null) return undefined;
-      // yahoo-finance2 may return a Date object or a Unix seconds integer
-      const d = raw instanceof Date ? raw : new Date(
-        raw > 1e10 ? raw : raw * 1000   // if already ms, use as-is; else convert from seconds
-      );
-      if (isNaN(d.getTime())) return undefined;
-      return d.toISOString().slice(0, 10);
+      // Convert raw timestamp (seconds or ms) → Date object, or null
+      const toDate = raw => {
+        if (raw == null) return null;
+        const d = raw instanceof Date ? raw : new Date(raw > 1e10 ? raw : raw * 1000);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
+      const ts      = toDate(q.earningsTimestamp);
+      const tsStart = toDate(q.earningsTimestampStart);
+      const tsEnd   = toDate(q.earningsTimestampEnd);
+
+      // Priority: pick the UPCOMING (future) earnings date.
+      // earningsTimestampStart is the start of the next earnings window — most reliable.
+      // earningsTimestamp is often the LAST reported quarter (past) after a company reports.
+      // Accept any date ≥ 6 days ago (catches "just reported" edge-case).
+      const RECENT_MS = 6 * 24 * 60 * 60 * 1000;
+      const cutoff    = Date.now() - RECENT_MS;
+
+      const candidates = [tsStart, tsEnd, ts].filter(Boolean);
+      const upcoming   = candidates.find(d => d.getTime() >= cutoff);
+
+      if (!upcoming) return undefined;
+      return upcoming.toISOString().slice(0, 10);
     })(),
   };
 }
