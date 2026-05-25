@@ -17,6 +17,8 @@ export const SECTOR_STOCKS = {
     // Cloud / SaaS
     'DDOG','SNOW','MDB','TEAM','GTLB','TWLO','CFLT','PD','DBX','BOX',
     'WDAY','HUBS','VEEV','BILL','NCNO','ESTC','ZI','APPF','ASAN','KVYO',
+    // DevOps / Developer Tools
+    'FROG','DBTX','SMAR','MNDY','TOST','PCOR','IOT',
     // AI / Emerging
     'PATH','AI','AMBA','RBRK','APP','TTD','CEVA','HIMX','ATEN',
     // Quantum Computing
@@ -204,6 +206,7 @@ export const INDUSTRY_GROUPS = [
   { name: 'Software — Enterprise',  sector: 'Technology',             tickers: ['CRM','ORCL','NOW','WDAY','INTU','ADBE','MSFT','IBM','CTSH','EPAM','ACN','SAP','SMAR','APPF','PEGA','DOMO','ANSS','PTC','CDNS','SNPS','MANH','CDAY','TOAD','ALTR','VEEV','HUBS'] },
   { name: 'Software — Security',    sector: 'Technology',             tickers: ['CRWD','PANW','FTNT','ZS','CYBR','S','OKTA','CHKP','NET','TENB','QLYS','VRNS','RBRK','CSCO','RPD','SAIL','SAIC','LDOS','CACI','CWAN','MNDT','FEYE','SCWX','ISTR','OSPN'] },
   { name: 'Software — Cloud Infra', sector: 'Technology',             tickers: ['SNOW','MDB','DDOG','TEAM','GTLB','NET','TWLO','CFLT','PD','DBX','BOX','HUBS','ESTC','PURE','NTNX','DOCN','CLDR','FSLY','AMPL','BRZE','SUMO','NCNO','TOST','MNDY'] },
+  { name: 'Software — DevOps',      sector: 'Technology',             tickers: ['FROG','GTLB','TEAM','DBTX','SMAR','MNDY','PCOR','ASAN','IOT','DDOG','NET','AMPL','BRZE','TOST','PD'] },
   { name: 'Software — AI / Data',   sector: 'Technology',             tickers: ['PLTR','AI','PATH','AMBA','RBRK','ANET','KVYO','ASAN','APP','TTD','MGNI','DV','ZETA','UPST','BBAI','SOUN','IONQ','NBIS','QUBT','QBTS','RGTI','MSFT','GOOGL','META','NVDA','IBM'] },
   { name: 'Software — SMB / Vert.', sector: 'Technology',             tickers: ['BILL','VEEV','ZI','APPF','HUBS','PCOR','MNDY','TOST','TASK','BAND','EVBG','SPSC','PAR','XPEL','ALRM','QTWO','JAMF','SMAR','ACMR','DBTX','AVEYA','PERI','FOUR','NTNX'] },
   { name: 'Hardware — Networking',  sector: 'Technology',             tickers: ['CSCO','ANET','VIAV','CIEN','CALX','LITE','COHR','ADTN','INFN','FFIV','JNPR','EXTR','NTGR','RBBN','CASA','ARLO','SMCI','HPE','DELL','NVDA','MRVL','AVGO'] },

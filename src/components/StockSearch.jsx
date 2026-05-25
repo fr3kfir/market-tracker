@@ -378,6 +378,7 @@ export default function StockSearch({ stocksByTicker }) {
       {/* Unknown stock (not in universe but fetched from Yahoo) */}
       {ticker && !info && !unknownLoading && unknownStock && (
         <div>
+          {/* ── Stock card ── */}
           <div style={{
             background: 'var(--bg-panel)', border: '2px solid #3b82f6',
             borderRadius: 12, padding: '18px 20px', marginBottom: 20,
@@ -438,9 +439,88 @@ export default function StockSearch({ stocksByTicker }) {
                     }}>🏭 {unknownStock.industry}</span>
                   </div>
                 )}
+                <div style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', alignSelf: 'flex-end', fontStyle: 'italic' }}>
+                  ⚠ Not in our tracked universe
+                </div>
               </div>
             )}
           </div>
+
+          {/* ── Sector Peers (from our universe) ── */}
+          {unknownStock.sector && (() => {
+            // Match Yahoo's sector name to our INDUSTRY_GROUPS sectors
+            const yahooSector = unknownStock.sector; // e.g. "Technology"
+            const peerGroups = INDUSTRY_GROUPS.filter(g => g.sector === yahooSector);
+            if (!peerGroups.length) return null;
+
+            // Get top stocks from those groups sorted by RS
+            const peerTickers = [...new Set(peerGroups.flatMap(g => g.tickers))];
+            const peerStocks = peerTickers
+              .map(t => stocksMap[t])
+              .filter(Boolean)
+              .sort((a, b) => (b.rs || 0) - (a.rs || 0))
+              .slice(0, 25);
+
+            if (!peerStocks.length) return null;
+
+            const avgChange = peerStocks.reduce((s, st) => s + (st.change || 0), 0) / peerStocks.length;
+
+            return (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'monospace', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Top peers — {yahooSector} sector ({peerStocks.length} stocks, avg {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}% today)
+                </div>
+                <div style={{
+                  background: 'var(--bg-panel)', border: '1px solid var(--border)',
+                  borderRadius: 10, overflow: 'hidden',
+                }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                          {['#', 'Ticker', 'Price', 'Today', '1W', '1M', 'RS', 'Stage'].map((h, i) => (
+                            <th key={h} style={{
+                              padding: '6px 10px', fontSize: 10, fontWeight: 600,
+                              color: 'var(--text-faint)', fontFamily: 'monospace',
+                              textAlign: i <= 1 ? 'left' : 'right',
+                              textTransform: 'uppercase', letterSpacing: '0.05em',
+                            }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {peerStocks.map((s, i) => (
+                          <tr key={s.ticker} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.1s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.06)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <td style={{ padding: '7px 10px', fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>{i + 1}</td>
+                            <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{s.ticker}</td>
+                            <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)', textAlign: 'right' }}>
+                              {s.price != null ? `$${s.price.toFixed(2)}` : '—'}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfBadge value={s.change} highlight /></td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfBadge value={s.w1} /></td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfBadge value={s.m1} /></td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: RS_COLOR(s.rs) }}>
+                              {s.rs ?? '—'}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: STAGE_COLORS[s.stage] || 'var(--text-faint)' }}>
+                              {s.stage || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', marginTop: 6, textAlign: 'center' }}>
+                  Sorted by RS rating · Showing top 25 from {peerGroups.length} industry groups in {yahooSector}
+                </div>
+              </div>
+            );
+          })()}
+
           {!unknownStock.sector && (
             <div style={{ color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12, textAlign: 'center' }}>
               No sector/industry data available for this ticker
