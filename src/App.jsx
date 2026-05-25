@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import MarketBreadth from './components/MarketBreadth';
 import MarketTicker from './components/MarketTicker';
 import StageOverview from './components/StageOverview';
@@ -413,21 +413,18 @@ export default function App() {
 
   const { breadth, sectorData, stageDist, stageHistory, themeData, industryGroupData, stocksByTicker, hotThemeData } = marketData || {};
 
-  // Merge richer earnings dates from the dedicated API into stocksByTicker
-  // earningsData = { TICKER: 'YYYY-MM-DD' } from /api/earnings
-  const enrichedStocksByTicker = useMemo(() => {
+  // Merge richer earnings dates from the dedicated API into stocksByTicker.
+  // Regular computation — NOT a hook, so no rules-of-hooks issue after early returns.
+  const enrichedStocksByTicker = (() => {
     if (!stocksByTicker || Object.keys(earningsData).length === 0) return stocksByTicker || {};
     const merged = { ...stocksByTicker };
     Object.entries(earningsData).forEach(([ticker, date]) => {
-      if (merged[ticker]) {
-        // Only override if the dedicated endpoint found a date, or the quote didn't have one
-        if (!merged[ticker].earningsDate || date) {
-          merged[ticker] = { ...merged[ticker], earningsDate: date };
-        }
+      if (merged[ticker] && (!merged[ticker].earningsDate || date)) {
+        merged[ticker] = { ...merged[ticker], earningsDate: date };
       }
     });
     return merged;
-  }, [stocksByTicker, earningsData]);
+  })();
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
