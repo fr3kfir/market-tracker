@@ -5,6 +5,30 @@ const FORM_FILTERS = ['All', '8-K', '10-K', '10-Q', 'S-1'];
 const FORM_COLORS  = { '8-K': '#f59e0b', '10-K': '#60a5fa', '10-Q': '#34d399', 'S-1': '#e879f9' };
 const REFRESH_SECS = 60;
 
+// 8-K item numbers → what the event actually is
+const ITEM_LABELS = {
+  '1.01': 'Material Agreement',
+  '1.02': 'Agreement Terminated',
+  '1.03': 'Bankruptcy / Receivership',
+  '2.01': 'Asset Acquisition/Disposal',
+  '2.02': '📈 Earnings Results',
+  '2.03': 'Off-Balance Sheet',
+  '2.04': 'Triggering Events',
+  '2.05': 'Costs — Exit/Disposal',
+  '3.01': 'Delisting Notice',
+  '3.02': 'Unregistered Sales',
+  '4.01': 'Auditor Change',
+  '4.02': 'Accounting Disagreement',
+  '5.01': 'Change in Control',
+  '5.02': '👤 Officer/Director Change',
+  '5.03': 'Amendment to Articles',
+  '5.07': 'Shareholder Vote',
+  '5.08': 'Fiscal Year Change',
+  '7.01': 'Reg FD Disclosure',
+  '8.01': 'Other Events',
+  '9.01': 'Financial Statements',
+};
+
 // Title + one-line description + detailed explanation for each form type
 const FORM_INFO = {
   '8-K': {
@@ -91,6 +115,24 @@ function FilingLegend({ activeFilter }) {
       )}
     </div>
   );
+}
+
+// Build a human-readable context line for a filing
+function filingContext(f) {
+  // 8-K: show what items were triggered
+  if (f.form === '8-K' && f.items?.length) {
+    const labels = f.items.map(i => ITEM_LABELS[i] || `Item ${i}`);
+    return labels.join(' · ');
+  }
+  // 10-K / 10-Q: show the period covered
+  if ((f.form === '10-K' || f.form === '10-Q') && f.period) {
+    const d = new Date(f.period + 'T12:00:00Z');
+    const mon = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+    return `Period ending ${mon}`;
+  }
+  // S-1: generic context
+  if (f.form === 'S-1') return 'Initial public offering prospectus';
+  return null;
 }
 
 export default function SecFilings() {
@@ -214,58 +256,69 @@ export default function SecFilings() {
             )}
 
             {displayed.map((f, i) => {
-              const info  = FORM_INFO[f.form];
-              const color = FORM_COLORS[f.form] || '#94a3b8';
+              const info    = FORM_INFO[f.form];
+              const color   = FORM_COLORS[f.form] || '#94a3b8';
+              const ctx     = filingContext(f);                            // e.g. "📈 Earnings Results"
+              const coName  = f.company || (f.cik ? `CIK ${f.cik}` : 'Unknown filer');
+              const isAnon  = !f.company;
+              const sep     = { borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none' };
+
               return isMobile ? (
                 // ── Mobile card row ──
                 <div
                   key={i}
-                  style={{ padding: '12px 14px', borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.1s' }}
+                  style={{ padding: '12px 14px', ...sep, transition: 'background 0.1s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                 >
-                  {/* Row 1: Form badge + date */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  {/* Row 1: Form type + date */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4 }}>{f.form}</span>
-                      {info && <span style={{ fontSize: 10, color, opacity: 0.8 }}>{info.icon} {info.title}</span>}
+                      {info && <span style={{ fontSize: 10, color, opacity: 0.85 }}>{info.icon} {info.title}</span>}
                     </div>
                     <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</span>
                   </div>
                   {/* Row 2: Company name */}
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.company}</div>
-                  {/* Row 3: Filing description + link */}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', marginBottom: ctx ? 3 : 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isAnon ? 'italic' : 'normal' }}>
+                    {coName}
+                  </div>
+                  {/* Row 3: Filing-specific context + link */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    {info && <div style={{ fontSize: 10, color: '#475569', flex: 1 }}>{info.short}</div>}
-                    <a
-                      href={f.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700, textDecoration: 'none', border: `1px solid ${color}25`, flexShrink: 0 }}
-                    >View ↗</a>
+                    <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ctx || (info ? info.short : '')}
+                    </div>
+                    <a href={f.url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700, textDecoration: 'none', border: `1px solid ${color}25`, flexShrink: 0 }}>
+                      View ↗
+                    </a>
                   </div>
                 </div>
               ) : (
                 // ── Desktop table row ──
                 <div
                   key={i}
-                  style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '11px 16px', borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'center', transition: 'background 0.1s' }}
+                  style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '11px 16px', ...sep, alignItems: 'center', transition: 'background 0.1s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                 >
                   <FormBadge form={f.form} />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>{f.company}</div>
-                    {info && <div style={{ fontSize: 10, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{info.short}</div>}
+                    {/* Company name — italic + dimmed when unknown */}
+                    <div style={{ fontSize: 12, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2, fontStyle: isAnon ? 'italic' : 'normal' }}>
+                      {coName}
+                    </div>
+                    {/* Context line — filing-specific (items / period) or form short description */}
+                    <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ctx || (info ? info.short : '')}
+                    </div>
                   </div>
                   <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</div>
                   <div>
-                    <a
-                      href={f.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: `1px solid ${color}25` }}
-                    >View ↗</a>
+                    <a href={f.url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: `1px solid ${color}25` }}>
+                      View ↗
+                    </a>
                   </div>
                 </div>
               );

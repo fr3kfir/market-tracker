@@ -63,10 +63,27 @@ async function fetchViaEfts(forms) {
       ? `https://www.sec.gov/Archives/edgar/data/${cik}/${accNoDashes}/${acc}-index.htm`
       : `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(s.entity_name || '')}&type=${s.form_type || ''}&dateb=&owner=include&count=5`;
 
+    // Friendly company name — try entity_name then display_names array
+    const displayNames = s.display_names || [];
+    const companyRaw   = s.entity_name || (displayNames[0] ? displayNames[0].replace(/\s*\(\d+\)\s*$/, '').trim() : '');
+    const company      = companyRaw || null; // null = truly unknown
+
+    // 8-K items (e.g. "2.02,5.02") — raw list from EDGAR
+    const items = s.items ? String(s.items).split(/[,\s]+/).filter(Boolean) : [];
+
+    // Period of report (e.g. "2024-03-31" for a Q1 10-Q)
+    const period = s.period_of_report || null;
+
+    // CIK for fallback display
+    const cikDisplay = cik ? String(cik) : null;
+
     return {
-      company: s.entity_name || 'Unknown',
-      form:    s.form_type   || 'N/A',
-      date:    s.file_date   || today,
+      company,
+      cik: cikDisplay,
+      form:    s.form_type || 'N/A',
+      date:    s.file_date || today,
+      period,
+      items,
       accNo:   acc,
       url:     filingUrl,
     };

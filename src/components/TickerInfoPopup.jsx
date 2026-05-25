@@ -121,9 +121,6 @@ export default function TickerInfoPopup({ ticker: initTicker, stock: initStock, 
                 {cs?.stage && (
                   <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: STAGE_COLORS[cs.stage], background: `${STAGE_COLORS[cs.stage]}22`, padding: '2px 7px', borderRadius: 5 }}>{cs.stage}</span>
                 )}
-                {onClip && (
-                  <button onClick={() => onClip(ticker, cs?.name || ticker)} title="Add to Clipboard" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: 'var(--text-faint)' }}>📋</button>
-                )}
               </div>
               {cs?.name && cs.name !== ticker && (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 320, margin: '2px auto 0' }}>{cs.name}</div>
