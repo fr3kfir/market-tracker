@@ -6,21 +6,33 @@
 html { scroll-behavior: smooth; }
 
 :root {
-  --bg: #0d1117;
-  --bg-panel: #161b22;
-  --border: #21262d;
-  --text: #e6edf3;
-  --text-muted: #7d8590;
-  --text-faint: #3d444d;
+  --bg:         #0b0f18;   /* richer deep navy-black */
+  --bg-panel:   #111827;   /* cards: dark navy */
+  --bg-card:    #0f172a;   /* inner cards: slightly darker */
+  --border:     #1e293b;   /* subtle blue-gray border */
+  --border-hi:  #2d3d55;   /* highlighted border */
+  --text:       #e2e8f0;   /* slightly cooler white */
+  --text-muted: #94a3b8;   /* medium gray */
+  --text-faint: #475569;   /* dark gray */
+  --accent:     #3b82f6;
+  --accent-glow:rgba(59,130,246,0.18);
+  --green:      #34d399;
+  --red:        #f87171;
 }
 
 .light {
-  --bg: #f6f8fa;
-  --bg-panel: #ffffff;
-  --border: #d0d7de;
-  --text: #1f2328;
-  --text-muted: #636c76;
-  --text-faint: #c1cbd4;
+  --bg:         #f1f5f9;
+  --bg-panel:   #ffffff;
+  --bg-card:    #f8fafc;
+  --border:     #e2e8f0;
+  --border-hi:  #cbd5e1;
+  --text:       #0f172a;
+  --text-muted: #475569;
+  --text-faint: #94a3b8;
+  --accent:     #2563eb;
+  --accent-glow:rgba(37,99,235,0.15);
+  --green:      #059669;
+  --red:        #dc2626;
 }
 
 body {
@@ -28,6 +40,7 @@ body {
   color: var(--text);
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -36,9 +49,14 @@ body {
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.2);
+  border-radius: 14px;
   padding: 18px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.panel:hover {
+  border-color: var(--border-hi);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(59,130,246,0.05);
 }
 
 .panel-title {
@@ -160,4 +178,25 @@ body {
 @keyframes flash-red {
   0% { color: #f87171; }
   100% { color: inherit; }
+}
+
+/* Loading skeleton pulse for Expected Move badge */
+@keyframes pulse-load {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.7; }
+}
+
+/* Subtle card glow on hover */
+@keyframes border-glow {
+  0%   { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  50%  { box-shadow: 0 0 12px 2px rgba(59,130,246,0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+}
+
+/* Table row highlight */
+.data-row {
+  transition: background 0.12s;
+}
+.data-row:hover {
+  background: rgba(59,130,246,0.04) !important;
 }
