@@ -135,6 +135,52 @@ function filingContext(f) {
   return null;
 }
 
+// ── Filing summary preview panel ────────────────────────────────────────────
+function PreviewPanel({ filing, summary }) {
+  const color = FORM_COLORS[filing.form] || '#94a3b8';
+
+  return (
+    <div style={{
+      borderTop: `1px solid ${color}30`,
+      background: `${color}07`,
+      padding: '14px 18px',
+    }}>
+      {summary.loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 11, fontFamily: 'monospace' }}>
+          <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
+          Fetching document from SEC EDGAR…
+        </div>
+      ) : summary.error && !summary.text ? (
+        <div style={{ color: '#f87171', fontSize: 11, fontFamily: 'monospace' }}>
+          ⚠ Could not load preview — <a href={filing.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>open filing directly ↗</a>
+        </div>
+      ) : (
+        <div>
+          {/* Label */}
+          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: color, opacity: 0.7, marginBottom: 8, fontFamily: 'monospace' }}>
+            📄 Document Preview
+          </div>
+          {/* Extracted text */}
+          <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {summary.text}
+          </div>
+          {/* Link to primary doc */}
+          {summary.docUrl && (
+            <a
+              href={summary.docUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-block', marginTop: 10, fontSize: 10, color, fontFamily: 'monospace', textDecoration: 'none', borderBottom: `1px solid ${color}50`, paddingBottom: 1 }}
+            >
+              Open full document ↗
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SecFilings() {
   const isMobile = useIsMobile();
   const [filings, setFilings]       = useState([]);
@@ -144,6 +190,10 @@ export default function SecFilings() {
   const [countdown, setCountdown]   = useState(REFRESH_SECS);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const countdownRef = useRef(REFRESH_SECS);
+
+  // preview state: key = filing accNo (or fallback), value = { loading, text, docUrl, error }
+  const [previews,     setPreviews]     = useState({});
+  const [openPreview,  setOpenPreview]  = useState(null); // key of currently-open preview
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -179,6 +229,32 @@ export default function SecFilings() {
   }, [load]);
 
   const displayed = filings.filter(f => formFilter === 'All' || f.form === formFilter);
+
+  // ── Preview logic ──────────────────────────────────────────────────────────
+  const previewKey = (f) => f.accNo || `${f.company}|${f.date}`;
+
+  const fetchPreview = useCallback(async (filing) => {
+    const key = previewKey(filing);
+    if (previews[key]) return; // already loaded or loading
+    setPreviews(p => ({ ...p, [key]: { loading: true } }));
+    try {
+      const qs = new URLSearchParams({ url: filing.url, form: filing.form });
+      const r  = await fetch(`/api/sec-preview?${qs}`);
+      const d  = await r.json();
+      setPreviews(p => ({ ...p, [key]: { loading: false, text: d.summary, docUrl: d.docUrl, error: d.error } }));
+    } catch (e) {
+      setPreviews(p => ({ ...p, [key]: { loading: false, error: e.message } }));
+    }
+  }, [previews]);
+
+  const togglePreview = useCallback((filing) => {
+    const key = previewKey(filing);
+    setOpenPreview(prev => {
+      if (prev === key) return null; // close
+      fetchPreview(filing);          // start loading if needed
+      return key;                    // open
+    });
+  }, [fetchPreview]);
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '0 4px' : 0 }}>
@@ -248,7 +324,7 @@ export default function SecFilings() {
           <div>
             {/* Table header — desktop only */}
             {!isMobile && (
-              <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', opacity: 0.5 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 140px', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', opacity: 0.5 }}>
                 {['Form', 'Company', 'Date', ''].map(h => (
                   <span key={h} style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', fontFamily: 'monospace' }}>{h}</span>
                 ))}
@@ -258,68 +334,93 @@ export default function SecFilings() {
             {displayed.map((f, i) => {
               const info    = FORM_INFO[f.form];
               const color   = FORM_COLORS[f.form] || '#94a3b8';
-              const ctx     = filingContext(f);                            // e.g. "📈 Earnings Results"
+              const ctx     = filingContext(f);
               const coName  = f.company || (f.cik ? `CIK ${f.cik}` : 'Unknown filer');
               const isAnon  = !f.company;
+              const key     = previewKey(f);
+              const isOpen  = openPreview === key;
+              const preview = previews[key];
               const sep     = { borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none' };
+
+              // Preview button — shown on both mobile and desktop
+              const PreviewBtn = () => (
+                <button
+                  onClick={() => togglePreview(f)}
+                  title={isOpen ? 'Hide preview' : 'Show document preview'}
+                  style={{
+                    padding: '4px 9px', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+                    borderRadius: 6, border: `1px solid ${isOpen ? color : 'var(--border)'}`,
+                    background: isOpen ? `${color}20` : 'transparent',
+                    color: isOpen ? color : 'var(--text-muted)',
+                    cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
+                  }}
+                >
+                  {isOpen ? '▴ Hide' : '▾ Preview'}
+                </button>
+              );
 
               return isMobile ? (
                 // ── Mobile card row ──
-                <div
-                  key={i}
-                  style={{ padding: '12px 14px', ...sep, transition: 'background 0.1s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  {/* Row 1: Form type + date */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4 }}>{f.form}</span>
-                      {info && <span style={{ fontSize: 10, color, opacity: 0.85 }}>{info.icon} {info.title}</span>}
+                <div key={i} style={{ ...sep }}>
+                  <div style={{ padding: '12px 14px', transition: 'background 0.1s' }}>
+                    {/* Row 1: Form type + date */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4 }}>{f.form}</span>
+                        {info && <span style={{ fontSize: 10, color, opacity: 0.85 }}>{info.icon} {info.title}</span>}
+                      </div>
+                      <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</span>
                     </div>
-                    <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</span>
-                  </div>
-                  {/* Row 2: Company name */}
-                  <div style={{ fontSize: 13, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', marginBottom: ctx ? 3 : 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isAnon ? 'italic' : 'normal' }}>
-                    {coName}
-                  </div>
-                  {/* Row 3: Filing-specific context + link */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ctx || (info ? info.short : '')}
+                    {/* Row 2: Company name */}
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', marginBottom: ctx ? 3 : 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isAnon ? 'italic' : 'normal' }}>
+                      {coName}
                     </div>
-                    <a href={f.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700, textDecoration: 'none', border: `1px solid ${color}25`, flexShrink: 0 }}>
-                      View ↗
-                    </a>
+                    {/* Row 3: Context + Preview + View */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ctx || (info ? info.short : '')}
+                      </div>
+                      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                        <PreviewBtn />
+                        <a href={f.url} target="_blank" rel="noopener noreferrer"
+                          style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700, textDecoration: 'none', border: `1px solid ${color}25` }}>
+                          View ↗
+                        </a>
+                      </div>
+                    </div>
                   </div>
+                  {/* Preview panel */}
+                  {isOpen && preview && <PreviewPanel filing={f} summary={preview} />}
                 </div>
               ) : (
                 // ── Desktop table row ──
-                <div
-                  key={i}
-                  style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '11px 16px', ...sep, alignItems: 'center', transition: 'background 0.1s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <FormBadge form={f.form} />
-                  <div style={{ minWidth: 0 }}>
-                    {/* Company name — italic + dimmed when unknown */}
-                    <div style={{ fontSize: 12, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2, fontStyle: isAnon ? 'italic' : 'normal' }}>
-                      {coName}
+                <div key={i} style={{ ...sep }}>
+                  <div
+                    style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 140px', gap: 8, padding: '11px 16px', alignItems: 'center', transition: 'background 0.1s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <FormBadge form={f.form} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2, fontStyle: isAnon ? 'italic' : 'normal' }}>
+                        {coName}
+                      </div>
+                      <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ctx || (info ? info.short : '')}
+                      </div>
                     </div>
-                    {/* Context line — filing-specific (items / period) or form short description */}
-                    <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ctx || (info ? info.short : '')}
+                    <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</div>
+                    {/* Actions: Preview + View */}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <PreviewBtn />
+                      <a href={f.url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: `1px solid ${color}25` }}>
+                        View ↗
+                      </a>
                     </div>
                   </div>
-                  <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</div>
-                  <div>
-                    <a href={f.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: `1px solid ${color}25` }}>
-                      View ↗
-                    </a>
-                  </div>
+                  {/* Preview panel — full width below the row */}
+                  {isOpen && preview && <PreviewPanel filing={f} summary={preview} />}
                 </div>
               );
             })}
