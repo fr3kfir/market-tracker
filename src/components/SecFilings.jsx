@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
 
 const FORM_FILTERS = ['All', '8-K', '10-K', '10-Q', 'S-1'];
 const FORM_COLORS  = { '8-K': '#f59e0b', '10-K': '#60a5fa', '10-Q': '#34d399', 'S-1': '#e879f9' };
 const REFRESH_SECS = 60;
 
-// 8-K item numbers → what the event actually is
 const ITEM_LABELS = {
   '1.01': 'Material Agreement',
   '1.02': 'Agreement Terminated',
@@ -29,7 +28,6 @@ const ITEM_LABELS = {
   '9.01': 'Financial Statements',
 };
 
-// Title + one-line description + detailed explanation for each form type
 const FORM_INFO = {
   '8-K': {
     icon: '📢',
@@ -53,7 +51,7 @@ const FORM_INFO = {
     icon: '🚀',
     title: 'IPO Registration',
     short: 'Company going public for the first time',
-    detail: 'Filed before a company\'s IPO. Contains the business model, financials, risk factors, and proposed share price range. Reading the S-1 is essential before buying any newly public company.',
+    detail: "Filed before a company's IPO. Contains the business model, financials, risk factors, and proposed share price range. Reading the S-1 is essential before buying any newly public company.",
   },
 };
 
@@ -66,7 +64,7 @@ function FormBadge({ form }) {
         {form}
       </span>
       {info && (
-        <span style={{ fontSize: 9, color: color, opacity: 0.7, fontFamily: 'monospace', paddingLeft: 2 }}>
+        <span style={{ fontSize: 9, color, opacity: 0.7, fontFamily: 'monospace', paddingLeft: 2 }}>
           {info.icon} {info.title}
         </span>
       )}
@@ -74,7 +72,6 @@ function FormBadge({ form }) {
   );
 }
 
-// Legend card shown above the list
 function FilingLegend({ activeFilter }) {
   const [expanded, setExpanded] = useState(false);
   const forms = activeFilter === 'All' ? Object.keys(FORM_INFO) : [activeFilter].filter(f => FORM_INFO[f]);
@@ -90,7 +87,6 @@ function FilingLegend({ activeFilter }) {
         </span>
         <span style={{ fontSize: 14, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'none' }}>⌄</span>
       </button>
-
       {expanded && (
         <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid #1e293b' }}>
           <div style={{ height: 10 }} />
@@ -117,84 +113,75 @@ function FilingLegend({ activeFilter }) {
   );
 }
 
-// Build a human-readable context line for a filing
 function filingContext(f) {
-  // 8-K: show what items were triggered
   if (f.form === '8-K' && f.items?.length) {
-    const labels = f.items.map(i => ITEM_LABELS[i] || `Item ${i}`);
-    return labels.join(' · ');
+    return f.items.map(i => ITEM_LABELS[i] || `Item ${i}`).join(' · ');
   }
-  // 10-K / 10-Q: show the period covered
   if ((f.form === '10-K' || f.form === '10-Q') && f.period) {
-    const d = new Date(f.period + 'T12:00:00Z');
+    const d   = new Date(f.period + 'T12:00:00Z');
     const mon = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
     return `Period ending ${mon}`;
   }
-  // S-1: generic context
   if (f.form === 'S-1') return 'Initial public offering prospectus';
   return null;
 }
 
-// ── Filing summary preview panel ────────────────────────────────────────────
-function PreviewPanel({ filing, summary }) {
-  const color = FORM_COLORS[filing.form] || '#94a3b8';
+// ── Inline summary strip shown below each filing row ─────────────────────────
+function InlineSummary({ preview, color, docUrl }) {
+  if (!preview) return null;
+
+  if (preview.loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 10, color: '#475569', fontFamily: 'monospace' }}>
+        <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
+        טוען תקציר מ-SEC EDGAR…
+      </div>
+    );
+  }
+
+  if (!preview.text) return null;   // silent fail — no clutter
 
   return (
-    <div style={{
-      borderTop: `1px solid ${color}30`,
-      background: `${color}07`,
-      padding: '14px 18px',
-    }}>
-      {summary.loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: 11, fontFamily: 'monospace' }}>
-          <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
-          Fetching document from SEC EDGAR…
-        </div>
-      ) : summary.error && !summary.text ? (
-        <div style={{ color: '#f87171', fontSize: 11, fontFamily: 'monospace' }}>
-          ⚠ Could not load preview — <a href={filing.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>open filing directly ↗</a>
-        </div>
-      ) : (
-        <div>
-          {/* Label */}
-          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: color, opacity: 0.7, marginBottom: 8, fontFamily: 'monospace' }}>
-            📄 Document Preview
-          </div>
-          {/* Extracted text */}
-          <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {summary.text}
-          </div>
-          {/* Link to primary doc */}
-          {summary.docUrl && (
-            <a
-              href={summary.docUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'inline-block', marginTop: 10, fontSize: 10, color, fontFamily: 'monospace', textDecoration: 'none', borderBottom: `1px solid ${color}50`, paddingBottom: 1 }}
-            >
-              Open full document ↗
-            </a>
-          )}
-        </div>
+    <div style={{ marginTop: 7 }}>
+      {/* Summary text — clamp to 4 lines */}
+      <div style={{
+        fontSize: 11, color: '#94a3b8', lineHeight: 1.65,
+        display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+      }}>
+        {preview.text}
+      </div>
+      {/* Link straight to the primary doc */}
+      {(preview.docUrl || docUrl) && (
+        <a
+          href={preview.docUrl || docUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-block', marginTop: 4, fontSize: 9, fontFamily: 'monospace', color, opacity: 0.7, textDecoration: 'none', borderBottom: `1px solid ${color}40` }}
+        >
+          פתח מסמך מלא ↗
+        </a>
       )}
     </div>
   );
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
 export default function SecFilings() {
   const isMobile = useIsMobile();
-  const [filings, setFilings]       = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(null);
-  const [formFilter, setFormFilter] = useState('All');
-  const [countdown, setCountdown]   = useState(REFRESH_SECS);
+
+  const [filings,     setFilings]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [formFilter,  setFormFilter]  = useState('All');
+  const [countdown,   setCountdown]   = useState(REFRESH_SECS);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const countdownRef = useRef(REFRESH_SECS);
 
-  // preview state: key = filing accNo (or fallback), value = { loading, text, docUrl, error }
-  const [previews,     setPreviews]     = useState({});
-  const [openPreview,  setOpenPreview]  = useState(null); // key of currently-open preview
+  // previews: accNo → { loading, text, docUrl, error }
+  const [previews, setPreviews] = useState({});
+  const queuedRef  = useRef(new Set()); // accNos already enqueued
 
+  // ── Load filings ────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -228,15 +215,15 @@ export default function SecFilings() {
     return () => clearInterval(id);
   }, [load]);
 
-  const displayed = filings.filter(f => formFilter === 'All' || f.form === formFilter);
+  const displayed = useMemo(
+    () => filings.filter(f => formFilter === 'All' || f.form === formFilter),
+    [filings, formFilter]
+  );
 
-  // ── Preview logic ──────────────────────────────────────────────────────────
-  const previewKey = (f) => f.accNo || `${f.company}|${f.date}`;
-
-  const fetchPreview = useCallback(async (filing) => {
-    const key = previewKey(filing);
-    if (previews[key]) return; // already loaded or loading
-    setPreviews(p => ({ ...p, [key]: { loading: true } }));
+  // ── Fetch a single preview (stable reference — no deps on `previews`) ────────
+  const fetchOne = useCallback(async (filing) => {
+    const key = filing.accNo || `${filing.company}|${filing.date}`;
+    setPreviews(p => p[key] ? p : { ...p, [key]: { loading: true } });
     try {
       const qs = new URLSearchParams({ url: filing.url, form: filing.form });
       const r  = await fetch(`/api/sec-preview?${qs}`);
@@ -245,26 +232,42 @@ export default function SecFilings() {
     } catch (e) {
       setPreviews(p => ({ ...p, [key]: { loading: false, error: e.message } }));
     }
-  }, [previews]);
+  }, []);
 
-  const togglePreview = useCallback((filing) => {
-    const key = previewKey(filing);
-    setOpenPreview(prev => {
-      if (prev === key) return null; // close
-      fetchPreview(filing);          // start loading if needed
-      return key;                    // open
+  // ── Auto-load summaries for every displayed filing (5 concurrent workers) ────
+  useEffect(() => {
+    if (displayed.length === 0) return;
+
+    // Only enqueue filings we haven't seen yet
+    const toFetch = displayed.filter(f => {
+      const key = f.accNo || `${f.company}|${f.date}`;
+      if (queuedRef.current.has(key)) return false;
+      queuedRef.current.add(key);
+      return true;
     });
-  }, [fetchPreview]);
+    if (toFetch.length === 0) return;
 
+    // Worker-pool: 5 concurrent chains
+    const CONCURRENCY = 5;
+    let idx = 0;
+    const next = async () => {
+      const i = idx++;
+      if (i >= toFetch.length) return;
+      await fetchOne(toFetch[i]);
+      await next();
+    };
+    for (let w = 0; w < Math.min(CONCURRENCY, toFetch.length); w++) next();
+  }, [displayed, fetchOne]);
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '0 4px' : 0 }}>
 
       {/* Header bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        {/* Form type filter buttons */}
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
           {FORM_FILTERS.map(f => {
-            const color = FORM_COLORS[f] || '#3b82f6';
+            const color  = FORM_COLORS[f] || '#3b82f6';
             const active = formFilter === f;
             return (
               <button
@@ -285,7 +288,6 @@ export default function SecFilings() {
           })}
         </div>
 
-        {/* Status + pop-out */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: 'monospace', color: 'var(--text-faint)', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px' }}>
             <span style={{ color: loading ? '#f59e0b' : '#34d399' }}>{loading ? '⟳' : '✓'}</span>
@@ -303,10 +305,8 @@ export default function SecFilings() {
         </div>
       </div>
 
-      {/* Filing legend (expandable) */}
       <FilingLegend activeFilter={formFilter} />
 
-      {/* Error */}
       {error && (
         <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 12, fontSize: 12, color: '#f87171', fontFamily: 'monospace', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>⚠ {error}</span>
@@ -322,10 +322,10 @@ export default function SecFilings() {
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>No filings found</div>
         ) : (
           <div>
-            {/* Table header — desktop only */}
+            {/* Desktop header */}
             {!isMobile && (
-              <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 140px', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', opacity: 0.5 }}>
-                {['Form', 'Company', 'Date', ''].map(h => (
+              <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', opacity: 0.5 }}>
+                {['Form', 'Company / Summary', 'Date', ''].map(h => (
                   <span key={h} style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', fontFamily: 'monospace' }}>{h}</span>
                 ))}
               </div>
@@ -337,90 +337,71 @@ export default function SecFilings() {
               const ctx     = filingContext(f);
               const coName  = f.company || (f.cik ? `CIK ${f.cik}` : 'Unknown filer');
               const isAnon  = !f.company;
-              const key     = previewKey(f);
-              const isOpen  = openPreview === key;
+              const key     = f.accNo || `${f.company}|${f.date}`;
               const preview = previews[key];
               const sep     = { borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none' };
 
-              // Preview button — shown on both mobile and desktop
-              const PreviewBtn = () => (
-                <button
-                  onClick={() => togglePreview(f)}
-                  title={isOpen ? 'Hide preview' : 'Show document preview'}
-                  style={{
-                    padding: '4px 9px', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
-                    borderRadius: 6, border: `1px solid ${isOpen ? color : 'var(--border)'}`,
-                    background: isOpen ? `${color}20` : 'transparent',
-                    color: isOpen ? color : 'var(--text-muted)',
-                    cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
-                  }}
-                >
-                  {isOpen ? '▴ Hide' : '▾ Preview'}
-                </button>
-              );
-
               return isMobile ? (
-                // ── Mobile card row ──
-                <div key={i} style={{ ...sep }}>
-                  <div style={{ padding: '12px 14px', transition: 'background 0.1s' }}>
-                    {/* Row 1: Form type + date */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4 }}>{f.form}</span>
-                        {info && <span style={{ fontSize: 10, color, opacity: 0.85 }}>{info.icon} {info.title}</span>}
-                      </div>
-                      <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</span>
+                // ── Mobile ──
+                <div key={i} style={{ padding: '12px 14px', ...sep }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '2px 7px', borderRadius: 4 }}>{f.form}</span>
+                      {info && <span style={{ fontSize: 10, color, opacity: 0.85 }}>{info.icon} {info.title}</span>}
                     </div>
-                    {/* Row 2: Company name */}
-                    <div style={{ fontSize: 13, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', marginBottom: ctx ? 3 : 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isAnon ? 'italic' : 'normal' }}>
-                      {coName}
-                    </div>
-                    {/* Row 3: Context + Preview + View */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {ctx || (info ? info.short : '')}
-                      </div>
-                      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                        <PreviewBtn />
-                        <a href={f.url} target="_blank" rel="noopener noreferrer"
-                          style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700, textDecoration: 'none', border: `1px solid ${color}25` }}>
-                          View ↗
-                        </a>
-                      </div>
-                    </div>
+                    <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</span>
                   </div>
-                  {/* Preview panel */}
-                  {isOpen && preview && <PreviewPanel filing={f} summary={preview} />}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isAnon ? 'italic' : 'normal' }}>
+                    {coName}
+                  </div>
+                  {ctx && (
+                    <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>{ctx}</div>
+                  )}
+                  {/* Inline summary */}
+                  <InlineSummary preview={preview} color={color} docUrl={f.url} />
+                  <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                    <a href={f.url} target="_blank" rel="noopener noreferrer"
+                      style={{ padding: '4px 12px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700, textDecoration: 'none', border: `1px solid ${color}25` }}>
+                      View ↗
+                    </a>
+                  </div>
                 </div>
               ) : (
-                // ── Desktop table row ──
-                <div key={i} style={{ ...sep }}>
-                  <div
-                    style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 140px', gap: 8, padding: '11px 16px', alignItems: 'center', transition: 'background 0.1s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  >
+                // ── Desktop ──
+                <div
+                  key={i}
+                  style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 70px', gap: 8, padding: '12px 16px', ...sep, alignItems: 'flex-start', transition: 'background 0.1s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  {/* Col 1: Form badge */}
+                  <div style={{ paddingTop: 2 }}>
                     <FormBadge form={f.form} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2, fontStyle: isAnon ? 'italic' : 'normal' }}>
-                        {coName}
-                      </div>
-                      <div style={{ fontSize: 10, color: ctx ? '#64748b' : '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {ctx || (info ? info.short : '')}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{f.date}</div>
-                    {/* Actions: Preview + View */}
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <PreviewBtn />
-                      <a href={f.url} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: `1px solid ${color}25` }}>
-                        View ↗
-                      </a>
-                    </div>
                   </div>
-                  {/* Preview panel — full width below the row */}
-                  {isOpen && preview && <PreviewPanel filing={f} summary={preview} />}
+
+                  {/* Col 2: Company + context + AUTO summary */}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: isAnon ? '#475569' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isAnon ? 'italic' : 'normal' }}>
+                      {coName}
+                    </div>
+                    {ctx && (
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ctx}
+                      </div>
+                    )}
+                    <InlineSummary preview={preview} color={color} docUrl={f.url} />
+                  </div>
+
+                  {/* Col 3: Date */}
+                  <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)', paddingTop: 2 }}>{f.date}</div>
+
+                  {/* Col 4: View link */}
+                  <div style={{ paddingTop: 2 }}>
+                    <a href={f.url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 6, background: `${color}15`, color, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, textDecoration: 'none', border: `1px solid ${color}25` }}>
+                      View ↗
+                    </a>
+                  </div>
                 </div>
               );
             })}
