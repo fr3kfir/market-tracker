@@ -39,6 +39,19 @@ function parseAtomEntries(xml) {
   return entries;
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+// Strip EDGAR boilerplate from company names returned by EFTS:
+//   "Booz Allen Hamilton (BAH) (CIK 0001443646)"  →  "Booz Allen Hamilton (BAH)"
+//   "SOME CO (0001234567)"                         →  "SOME CO"
+function cleanName(raw) {
+  if (!raw) return null;
+  return raw
+    .replace(/\s*\(CIK\s*\d+\)\s*$/i, '')   // "(CIK 0001443646)"
+    .replace(/\s*\(\d{7,}\)\s*$/g, '')        // bare long-digit CIK "(0001443646)"
+    .trim() || null;
+}
+
 // ── EFTS JSON approach (primary) ─────────────────────────────────────────
 async function fetchViaEfts(forms) {
   const today   = new Date().toISOString().slice(0, 10);
@@ -52,6 +65,13 @@ async function fetchViaEfts(forms) {
   if (!r.ok) throw new Error(`EFTS ${r.status}`);
   const data = await r.json();
 
+  // Debug: log the first hit's source keys so we can see the real field names
+  const firstHit = data?.hits?.hits?.[0];
+  if (firstHit) {
+    console.log('[sec] EFTS _source keys:', Object.keys(firstHit._source || {}));
+    console.log('[sec] EFTS sample form_type:', firstHit._source?.form_type, '| file_type:', firstHit._source?.file_type);
+  }
+
   return (data?.hits?.hits || []).map(hit => {
     const s   = hit._source || {};
     const acc = s.accession_no || hit._id || '';
@@ -63,10 +83,19 @@ async function fetchViaEfts(forms) {
       ? `https://www.sec.gov/Archives/edgar/data/${cik}/${accNoDashes}/${acc}-index.htm`
       : `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(s.entity_name || '')}&type=${s.form_type || ''}&dateb=&owner=include&count=5`;
 
-    // Friendly company name — try entity_name then display_names array
+    // Friendly company name — try entity_name then display_names[0], both cleaned
     const displayNames = s.display_names || [];
-    const companyRaw   = s.entity_name || (displayNames[0] ? displayNames[0].replace(/\s*\(\d+\)\s*$/, '').trim() : '');
-    const company      = companyRaw || null; // null = truly unknown
+    const rawName      = s.entity_name || displayNames[0] || '';
+    const company      = cleanName(rawName); // null = truly unknown
+
+    // Form type — EFTS may put it in form_type or file_type; also fall back to
+    // parsing the display_names string as a last resort
+    const formRaw =
+      s.form_type ||
+      s.file_type ||
+      hit.form_type ||          // sometimes at the hit level
+      (displayNames[0]?.match(/\b(8-K|10-K|10-Q|S-1)\b/)?.[1]) ||
+      null;
 
     // 8-K items (e.g. "2.02,5.02") — raw list from EDGAR
     const items = s.items ? String(s.items).split(/[,\s]+/).filter(Boolean) : [];
@@ -80,7 +109,7 @@ async function fetchViaEfts(forms) {
     return {
       company,
       cik: cikDisplay,
-      form:    s.form_type || 'N/A',
+      form:    formRaw || 'N/A',
       date:    s.file_date || today,
       period,
       items,
