@@ -134,19 +134,28 @@ function InlineSummary({ preview, color, docUrl }) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 10, color: '#475569', fontFamily: 'monospace' }}>
         <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
-        טוען תקציר מ-SEC EDGAR…
+        מנתח מסמך…
       </div>
     );
   }
 
-  if (!preview.text) return null;   // silent fail — no clutter
+  if (!preview.text) return null;
 
   return (
-    <div style={{ marginTop: 7 }}>
-      {/* Summary text — clamp to 4 lines */}
+    <div style={{ marginTop: 8 }}>
+      {/* AI badge */}
+      {preview.aiPowered && (
+        <div style={{ marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 8, fontFamily: 'monospace', fontWeight: 800, letterSpacing: '0.08em', color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', padding: '1px 6px', borderRadius: 3 }}>
+            ✦ AI Summary
+          </span>
+        </div>
+      )}
+      {/* Summary text */}
       <div style={{
-        fontSize: 11, color: '#94a3b8', lineHeight: 1.65,
-        display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        fontSize: 12, color: preview.aiPowered ? '#cbd5e1' : '#94a3b8',
+        lineHeight: 1.7,
+        display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden',
       }}>
         {preview.text}
       </div>
@@ -225,10 +234,10 @@ export default function SecFilings() {
     const key = filing.accNo || `${filing.company}|${filing.date}`;
     setPreviews(p => p[key] ? p : { ...p, [key]: { loading: true } });
     try {
-      const qs = new URLSearchParams({ url: filing.url, form: filing.form });
+      const qs = new URLSearchParams({ url: filing.url, form: filing.form, company: filing.company || '' });
       const r  = await fetch(`/api/sec-preview?${qs}`);
       const d  = await r.json();
-      setPreviews(p => ({ ...p, [key]: { loading: false, text: d.summary, docUrl: d.docUrl, error: d.error } }));
+      setPreviews(p => ({ ...p, [key]: { loading: false, text: d.summary, docUrl: d.docUrl, error: d.error, aiPowered: d.aiPowered } }));
     } catch (e) {
       setPreviews(p => ({ ...p, [key]: { loading: false, error: e.message } }));
     }
