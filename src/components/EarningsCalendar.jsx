@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import TickerInfoPopup from './TickerInfoPopup';
 import { useIsMobile } from '../hooks/useIsMobile';
 
+// ── Constants ────────────────────────────────────────────────────────────────
 const STAGE_COLORS = { S1: '#64748b', S2: '#3b82f6', S3: '#f59e0b', S4: '#ec4899' };
 const STAGE_BG     = { S1: '#1e293b', S2: '#1e3a5f', S3: '#431407', S4: '#500724' };
 
@@ -13,220 +14,206 @@ function rsColor(rs) {
   return '#94a3b8';
 }
 function emColor(em) {
-  if (!em)      return '#94a3b8';
-  if (em < 5)   return '#22d3ee';
-  if (em < 8)   return '#60a5fa';
-  if (em < 12)  return '#f59e0b';
-  if (em < 18)  return '#f97316';
+  if (!em)     return '#94a3b8';
+  if (em < 5)  return '#22d3ee';
+  if (em < 8)  return '#60a5fa';
+  if (em < 12) return '#f59e0b';
+  if (em < 18) return '#f97316';
   return '#ef4444';
 }
 
+// ── Date helpers ─────────────────────────────────────────────────────────────
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
 function toDateStr(d)     { return d.toISOString().slice(0, 10); }
 
-function daysFromNow(dateStr) {
-  const today = toDateStr(new Date());
-  if (dateStr === today) return 0;
-  return Math.round((new Date(dateStr + 'T12:00:00Z') - new Date(today + 'T12:00:00Z')) / 864e5);
+// Mon–Fri for a given week offset (0 = this week)
+function getWeekDays(offset) {
+  const today  = new Date();
+  const dow    = today.getDay();                          // 0=Sun
+  const monday = addDays(today, -((dow + 6) % 7) + offset * 7);
+  const todayStr      = toDateStr(new Date());
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Array.from({ length: 5 }, (_, i) => {
+    const d       = addDays(monday, i);
+    const dateStr = toDateStr(d);
+    return {
+      dateStr,
+      dayName:   d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+      dayNum:    d.getDate(),
+      monthAbbr: d.toLocaleDateString('en-US', { month: 'short' }),
+      isToday:   dateStr === todayStr,
+      isPast:    d < todayMidnight,
+    };
+  });
 }
 
-function formatDateLabel(dateStr) {
-  const n    = daysFromNow(dateStr);
-  const d    = new Date(dateStr + 'T12:00:00Z');
-  const base = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-  if (n === 0)  return { label: 'Today',     sub: base,           accent: '#3b82f6' };
-  if (n === 1)  return { label: 'Tomorrow',  sub: base,           accent: '#22d3ee' };
-  if (n === -1) return { label: 'Yesterday', sub: base,           accent: '#64748b' };
-  if (n > 0)    return { label: base,        sub: `in ${n} days`, accent: n <= 3 ? '#a78bfa' : '#475569' };
-  return         { label: base,              sub: `${-n}d ago`,   accent: '#374151' };
-}
+// 6-week grid for a given month offset (0 = this month)
+function getMonthGrid(offset) {
+  const now    = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0);
+  const startDow = (target.getDay() + 6) % 7;            // 0=Mon
+  const todayStr = toDateStr(now);
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-// ── Shared badges ────────────────────────────────────────────────────────
-
-function EmBadge({ em, loading, compact }) {
-  const style = {
-    fontSize: compact ? 11 : 12,
-    fontFamily: 'monospace', fontWeight: 800,
-    padding: compact ? '1px 6px' : '1px 7px', borderRadius: 5,
-    letterSpacing: '-0.5px',
+  const weeks = [];
+  let cur = addDays(target, -startDow);
+  for (let w = 0; w < 6; w++) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const dateStr = toDateStr(cur);
+      week.push({
+        dateStr,
+        dayNum:         cur.getDate(),
+        isCurrentMonth: cur.getMonth() === target.getMonth(),
+        isToday:        dateStr === todayStr,
+        isPast:         cur < todayMidnight,
+        isWeekend:      d >= 5,
+      });
+      cur = addDays(cur, 1);
+    }
+    weeks.push(week);
+    if (w >= 3 && new Date(week[6].dateStr) >= lastDay) break;
+  }
+  return {
+    weeks,
+    label: target.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
   };
-  if (loading) return (
-    <span style={{ ...style, color: '#334155', background: 'rgba(255,255,255,0.04)', border: '1px solid #1e293b', animation: 'pulse-load 1.5s ease-in-out infinite' }}>···</span>
-  );
+}
+
+// ── Shared badges ─────────────────────────────────────────────────────────────
+function EmBadge({ em, loading, compact }) {
+  const s = { fontSize: compact ? 10 : 11, fontFamily: 'monospace', fontWeight: 800, padding: compact ? '1px 5px' : '1px 6px', borderRadius: 4 };
+  if (loading) return <span style={{ ...s, color: '#334155', background: 'rgba(255,255,255,0.04)', border: '1px solid #1e293b', animation: 'pulse-load 1.5s ease-in-out infinite' }}>···</span>;
   if (!em) return null;
   const c = emColor(em);
-  return (
-    <span title="Options ATM straddle ÷ price (implied expected move)" style={{ ...style, color: c, background: `${c}15`, border: `1px solid ${c}28`, cursor: 'help' }}>
-      ±{em}%
-    </span>
-  );
+  return <span style={{ ...s, color: c, background: `${c}15`, border: `1px solid ${c}28` }} title="Expected Move (ATM straddle ÷ price)">±{em}%</span>;
 }
 
 function RsRing({ rs }) {
   if (rs == null) return null;
   const c = rsColor(rs), r = 10, circ = 2 * Math.PI * r;
   return (
-    <div title={`RS Rating: ${rs}`} style={{ position: 'relative', width: 28, height: 28, flexShrink: 0, cursor: 'help' }}>
-      <svg width="28" height="28" style={{ transform: 'rotate(-90deg)' }} viewBox="0 0 28 28">
-        <circle cx="14" cy="14" r={r} fill="none" stroke="#1e293b" strokeWidth="3" />
-        <circle cx="14" cy="14" r={r} fill="none" stroke={c} strokeWidth="3"
-          strokeDasharray={circ} strokeDashoffset={circ * (1 - rs / 100)} strokeLinecap="round" />
+    <div title={`RS Rating: ${rs}`} style={{ position: 'relative', width: 26, height: 26, flexShrink: 0, cursor: 'help' }}>
+      <svg width="26" height="26" style={{ transform: 'rotate(-90deg)' }} viewBox="0 0 26 26">
+        <circle cx="13" cy="13" r={r} fill="none" stroke="#1e293b" strokeWidth="2.5" />
+        <circle cx="13" cy="13" r={r} fill="none" stroke={c} strokeWidth="2.5" strokeDasharray={circ} strokeDashoffset={circ * (1 - rs / 100)} strokeLinecap="round" />
       </svg>
       <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 7, fontWeight: 800, color: c }}>{rs}</span>
     </div>
   );
 }
 
-// ── Desktop row (8-column grid) ──────────────────────────────────────────
-function EarningsRowDesktop({ stock, isReported, em, emLoading, onClick }) {
+// ── WeekStockCard: detailed card inside a day column ─────────────────────────
+function WeekStockCard({ stock, isReported, em, emLoading, onClick }) {
   const [hover, setHover] = useState(false);
+  const stageC = STAGE_COLORS[stock.stage] || '#475569';
   const change = stock.change ?? 0;
-  const stageC = STAGE_COLORS[stock.stage] || '#64748b';
   return (
-    <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{
-      display: 'grid',
-      gridTemplateColumns: '8px 62px 1fr 32px 76px 58px 80px 24px',
-      alignItems: 'center', gap: 10, padding: '11px 16px',
-      cursor: 'pointer',
-      background: hover ? 'rgba(59,130,246,0.04)' : 'transparent',
-      transition: 'background 0.12s',
-      opacity: isReported ? 0.5 : 1,
-    }}>
-      <div style={{ width: 3, height: 28, borderRadius: 2, background: isReported ? '#1e293b' : stageC }} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: rsColor(stock.rs), letterSpacing: '-0.5px' }}>{stock.ticker}</span>
-        {stock.stage && <span style={{ fontFamily: 'monospace', fontSize: 8, fontWeight: 700, color: stageC, background: STAGE_BG[stock.stage], padding: '1px 4px', borderRadius: 3, width: 'fit-content' }}>{stock.stage}</span>}
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        padding: '7px 9px', margin: '3px 5px', borderRadius: 8, cursor: 'pointer',
+        background: hover ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.02)',
+        border: `1px solid ${hover ? 'rgba(59,130,246,0.25)' : '#1e293b'}`,
+        opacity: isReported ? 0.5 : 1,
+        transition: 'all 0.12s',
+      }}
+    >
+      {/* Row 1: Ticker + Stage badge + ✓ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+        <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 800, color: rsColor(stock.rs), letterSpacing: '-0.5px' }}>{stock.ticker}</span>
+        {stock.stage && (
+          <span style={{ fontFamily: 'monospace', fontSize: 7, fontWeight: 700, color: stageC, background: STAGE_BG[stock.stage] || '#1e293b', padding: '1px 3px', borderRadius: 2 }}>{stock.stage}</span>
+        )}
+        {isReported && <span style={{ fontSize: 8, color: '#22c55e', marginLeft: 'auto' }}>✓</span>}
       </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stock.name}</div>
-        {stock.epsF != null && <div style={{ fontSize: 9, color: '#475569', fontFamily: 'monospace' }}>EPS est: <span style={{ color: stock.epsF >= 0 ? '#34d399' : '#f87171', fontWeight: 700 }}>${stock.epsF.toFixed(2)}</span></div>}
-      </div>
-      <RsRing rs={stock.rs} />
-      <div style={{ textAlign: 'right' }}>
-        {stock.price != null && <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>${stock.price.toFixed(2)}</div>}
-        {stock.change != null && <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: change >= 0 ? '#34d399' : '#f87171' }}>{change >= 0 ? '+' : ''}{change.toFixed(2)}%</div>}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        {!isReported && <EmBadge em={em} loading={emLoading} />}
-        {!isReported && !emLoading && em == null && <span style={{ fontSize: 9, color: '#334155', fontFamily: 'monospace' }}>EM</span>}
-        {!isReported && emLoading && <span style={{ fontSize: 9, color: '#334155', fontFamily: 'monospace' }}>EM</span>}
-      </div>
-      <div style={{ textAlign: 'right' }}>
-        {stock.marketCapB != null && <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>{stock.marketCapB >= 1000 ? `$${(stock.marketCapB/1000).toFixed(1)}T` : `$${stock.marketCapB.toFixed(0)}B`}</div>}
-        {stock.volBuzz >= 1.5 && <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#f59e0b', fontWeight: 700 }}>{stock.volBuzz.toFixed(1)}×</div>}
-      </div>
-      <div style={{ color: '#334155', textAlign: 'right' }}>›</div>
-    </div>
-  );
-}
-
-// ── Mobile card row ──────────────────────────────────────────────────────
-function EarningsRowMobile({ stock, isReported, em, emLoading, onClick }) {
-  const [hover, setHover] = useState(false);
-  const change   = stock.change ?? 0;
-  const stageC   = STAGE_COLORS[stock.stage] || '#64748b';
-  const changeOk = change >= 0;
-  return (
-    <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{
-      display: 'flex', alignItems: 'stretch', gap: 0,
-      padding: '12px 14px', cursor: 'pointer',
-      background: hover ? 'rgba(59,130,246,0.05)' : 'transparent',
-      transition: 'background 0.12s',
-      opacity: isReported ? 0.55 : 1,
-    }}>
-      {/* Left accent strip */}
-      <div style={{ width: 3, borderRadius: 2, background: isReported ? '#1e293b' : stageC, marginRight: 12, flexShrink: 0, alignSelf: 'stretch' }} />
-
-      {/* Main info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Line 1: Ticker + Stage + RS */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-          <span style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 800, color: rsColor(stock.rs), letterSpacing: '-0.5px' }}>{stock.ticker}</span>
-          {stock.stage && <span style={{ fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: stageC, background: STAGE_BG[stock.stage], padding: '1px 5px', borderRadius: 3 }}>{stock.stage}</span>}
-          {stock.rs != null && <span style={{ fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: rsColor(stock.rs), opacity: 0.8 }}>RS{stock.rs}</span>}
+      {/* Row 2: Company name */}
+      <div style={{ fontSize: 9, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 5 }}>{stock.name}</div>
+      {/* Row 3: EM + RS ring + Price */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        {!isReported
+          ? <EmBadge em={em} loading={emLoading} compact />
+          : stock.change != null && <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: change >= 0 ? '#34d399' : '#f87171' }}>{change >= 0 ? '+' : ''}{change.toFixed(1)}%</span>
+        }
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <RsRing rs={stock.rs} />
+          {stock.price != null && <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#475569' }}>${stock.price.toFixed(0)}</span>}
         </div>
-        {/* Line 2: Company name */}
-        <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{stock.name}</div>
-        {/* Line 3: EM + EPS est */}
-        {!isReported && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <EmBadge em={em} loading={emLoading} compact />
-            {stock.epsF != null && (
-              <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#475569' }}>
-                Est.EPS <span style={{ color: stock.epsF >= 0 ? '#34d399' : '#f87171', fontWeight: 700 }}>${stock.epsF.toFixed(2)}</span>
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Right: price block */}
-      <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: 10 }}>
-        {stock.price != null && <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 800, color: '#e2e8f0' }}>${stock.price.toFixed(2)}</div>}
-        {stock.change != null && (
-          <div style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: changeOk ? '#34d399' : '#f87171' }}>
-            {changeOk ? '+' : ''}{change.toFixed(2)}%
-          </div>
-        )}
-        {stock.marketCapB != null && <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#334155', marginTop: 2 }}>{stock.marketCapB >= 1000 ? `$${(stock.marketCapB/1000).toFixed(1)}T` : `$${stock.marketCapB.toFixed(0)}B`}</div>}
       </div>
     </div>
   );
 }
 
-// ── Small helpers ────────────────────────────────────────────────────────
-function Pill({ color, label }) {
-  return <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, padding: '3px 10px', borderRadius: 20, color, background: `${color}15`, border: `1px solid ${color}30` }}>{label}</span>;
-}
-function ActionBtn({ onClick, children, accent }) {
+// ── MonthChip: tiny ticker chip in a calendar cell ───────────────────────────
+function MonthChip({ stock, isReported, em, onClick }) {
+  const [hover, setHover] = useState(false);
+  const c = rsColor(stock.rs);
   return (
-    <button onClick={onClick} style={{ padding: '7px 18px', fontSize: 12, fontFamily: 'monospace', fontWeight: 700, borderRadius: 8, border: `1px solid ${accent}`, background: `${accent}20`, color: accent, cursor: 'pointer' }}>
-      {children}
-    </button>
+    <div
+      onClick={e => { e.stopPropagation(); onClick(stock); }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title={`${stock.ticker} — ${stock.name}${em ? ` · EM ±${em}%` : ''}${stock.rs ? ` · RS ${stock.rs}` : ''}`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 3,
+        padding: '2px 5px', borderRadius: 3, marginBottom: 2,
+        cursor: 'pointer',
+        fontSize: 9, fontFamily: 'monospace', fontWeight: 800,
+        letterSpacing: '-0.3px',
+        background: hover ? `${c}22` : `${c}0e`,
+        border: `1px solid ${hover ? `${c}60` : `${c}28`}`,
+        color: isReported ? '#475569' : c,
+        opacity: isReported ? 0.55 : 1,
+        transition: 'all 0.1s',
+        overflow: 'hidden', whiteSpace: 'nowrap',
+      }}
+    >
+      {stock.ticker}
+      {em && !isReported && <span style={{ fontSize: 8, color: emColor(em), fontWeight: 700 }}>±{em}%</span>}
+      {isReported && <span style={{ color: '#22c55e', fontSize: 8 }}>✓</span>}
+    </div>
   );
 }
 
-const colH = { fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#334155', fontFamily: 'monospace' };
-
-// ── Main component ───────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 export default function EarningsCalendar({ stocksByTicker, onClip }) {
   const isMobile = useIsMobile();
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [popupStock, setPopupStock] = useState(null);
-  const [emData, setEmData]         = useState({});
-  const [emLoading, setEmLoading]   = useState(false);
 
-  const today       = new Date();
-  const windowStart = weekOffset === 0 ? addDays(today, -7)              : addDays(today, weekOffset * 7);
-  const windowEnd   = weekOffset === 0 ? addDays(today, 20)              : addDays(windowStart, 27);
-  const startStr    = toDateStr(windowStart);
-  const endStr      = toDateStr(windowEnd);
+  const [weekOffset,  setWeekOffset]  = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [popupStock,  setPopupStock]  = useState(null);
+  const [emData,      setEmData]      = useState({});
+  const [emLoading,   setEmLoading]   = useState(false);
 
-  const grouped = useMemo(() => {
-    const stocks = Object.values(stocksByTicker).filter(s =>
-      s.earningsDate && s.earningsDate >= startStr && s.earningsDate <= endStr
-    );
+  // ── Global date→stocks index ──────────────────────────────────────────────
+  const byDate = useMemo(() => {
     const map = {};
-    stocks.forEach(s => { if (!map[s.earningsDate]) map[s.earningsDate] = []; map[s.earningsDate].push(s); });
-    return Object.entries(map)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, stocks]) => ({
-        date, isReported: daysFromNow(date) < 0,
-        stocks: [...stocks].sort((a, b) => (b.rs || 0) - (a.rs || 0)),
-      }));
-  }, [stocksByTicker, startStr, endStr]);
+    Object.values(stocksByTicker).forEach(s => {
+      if (!s.earningsDate) return;
+      (map[s.earningsDate] ||= []).push(s);
+    });
+    Object.values(map).forEach(arr => arr.sort((a, b) => (b.rs || 0) - (a.rs || 0)));
+    return map;
+  }, [stocksByTicker]);
 
-  const allStocks     = useMemo(() => grouped.flatMap(g => g.stocks), [grouped]);
-  const upcomingStocks = useMemo(() => grouped.filter(g => !g.isReported).flatMap(g => g.stocks), [grouped]);
-  const upcomingCount = upcomingStocks.length;
-  const recentCount   = grouped.filter(g => g.isReported).reduce((s, g) => s + g.stocks.length, 0);
+  const weekDays  = useMemo(() => getWeekDays(weekOffset),   [weekOffset]);
+  const monthGrid = useMemo(() => getMonthGrid(monthOffset), [monthOffset]);
+  const allStocks = useMemo(() => Object.values(stocksByTicker).filter(s => s.earningsDate), [stocksByTicker]);
 
-  // Fetch Expected Move for all upcoming stocks
-  const upcomingKey = upcomingStocks.map(s => s.ticker).join(',');
+  // ── Fetch Expected Move for upcoming stocks in current week ───────────────
+  const weeklyUpcoming = useMemo(
+    () => weekDays.filter(d => !d.isPast).flatMap(d => byDate[d.dateStr] || []),
+    [weekDays, byDate]
+  );
+  const upcomingKey = weeklyUpcoming.map(s => s.ticker).join(',');
+
   useEffect(() => {
-    if (!upcomingStocks.length) return;
+    if (!weeklyUpcoming.length) { setEmData({}); return; }
     setEmLoading(true);
-    const prices = upcomingStocks.map(s => `${s.ticker}:${s.price}`).join(',');
+    const prices = weeklyUpcoming.map(s => `${s.ticker}:${s.price}`).join(',');
     fetch(`/api/expected-move?symbols=${upcomingKey}&prices=${prices}`)
       .then(r => r.ok ? r.json() : {})
       .then(d => setEmData(d))
@@ -234,119 +221,260 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
       .finally(() => setEmLoading(false));
   }, [upcomingKey]);
 
-  // ── Toolbar ──────────────────────────────────────────────────────────
-  const toolbar = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', alignItems: 'center', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: 4 }}>
-        <button onClick={() => setWeekOffset(w => w - 1)} style={{ padding: '5px 12px', border: 'none', background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: 16, borderRadius: 6 }}>‹</button>
-        <span style={{ fontSize: isMobile ? 11 : 12, fontFamily: 'monospace', color: '#94a3b8', fontWeight: 600, minWidth: isMobile ? 90 : 120, textAlign: 'center' }}>
-          {weekOffset === 0 ? (isMobile ? 'Current' : 'Current window') : weekOffset > 0 ? `+${weekOffset * 7}d` : `${weekOffset * 7}d`}
-        </span>
-        <button onClick={() => setWeekOffset(w => w + 1)} style={{ padding: '5px 12px', border: 'none', background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: 16, borderRadius: 6 }}>›</button>
+  // ── Week label ────────────────────────────────────────────────────────────
+  const weekLabel = useMemo(() => {
+    if (!weekDays.length) return '';
+    const s = new Date(weekDays[0].dateStr + 'T12:00:00Z');
+    const e = new Date(weekDays[4].dateStr + 'T12:00:00Z');
+    const sFmt = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const eFmt = s.getMonth() === e.getMonth()
+      ? String(e.getDate())
+      : e.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${sFmt} – ${eFmt}, ${e.getFullYear()}`;
+  }, [weekDays]);
+
+  // ── Month earnings count ──────────────────────────────────────────────────
+  const monthCount = useMemo(() => {
+    const keys = new Set(monthGrid.weeks.flatMap(w => w.flatMap(d => (byDate[d.dateStr] || []).map(s => s.ticker))));
+    return keys.size;
+  }, [monthGrid, byDate]);
+
+  // ── Shared nav button style ───────────────────────────────────────────────
+  const navBtn = { padding: isMobile ? '5px 12px' : '6px 16px', border: 'none', background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: 18, borderRadius: 6, lineHeight: 1 };
+  const pillBtn = (active = false) => ({
+    padding: '5px 14px', fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
+    borderRadius: 8, border: '1px solid #1d4ed8', background: 'rgba(29,78,216,0.15)', color: '#60a5fa', cursor: 'pointer',
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  return (
+    <div style={{ maxWidth: isMobile ? '100%' : 980, margin: '0 auto', padding: isMobile ? '0 4px' : 0 }}>
+
+      {/* ══════════════════════════════════════════════════
+          SECTION 1 — WEEKLY CALENDAR
+      ══════════════════════════════════════════════════ */}
+      <div style={{ marginBottom: 32 }}>
+
+        {/* Week nav */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: 3 }}>
+            <button onClick={() => setWeekOffset(w => w - 1)} style={navBtn}>‹</button>
+            <span style={{ fontSize: isMobile ? 11 : 12, fontFamily: 'monospace', color: '#94a3b8', fontWeight: 700, minWidth: isMobile ? 130 : 195, textAlign: 'center' }}>
+              {weekOffset === 0 ? `📅 ${weekLabel}` : weekLabel}
+            </span>
+            <button onClick={() => setWeekOffset(w => w + 1)} style={navBtn}>›</button>
+          </div>
+
+          {weekOffset !== 0 && (
+            <button onClick={() => setWeekOffset(0)} style={pillBtn()}>↩ This Week</button>
+          )}
+
+          {/* EM legend — desktop only */}
+          {!isMobile && (
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, fontFamily: 'monospace', color: '#475569' }}>
+              <span style={{ marginRight: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Exp Move</span>
+              {[['<5%', '#22d3ee'], ['5–8%', '#60a5fa'], ['8–12%', '#f59e0b'], ['>12%', '#ef4444']].map(([l, c]) => (
+                <span key={l} style={{ color: c, fontWeight: 700 }}>{l}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 5-column Mon–Fri grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(5, ${isMobile ? 'minmax(62px, 1fr)' : '1fr'})`,
+          gap: isMobile ? 4 : 8,
+          overflowX: isMobile ? 'auto' : 'visible',
+          paddingBottom: isMobile ? 4 : 0,
+        }}>
+          {weekDays.map(day => {
+            const stocks = byDate[day.dateStr] || [];
+            return (
+              <div key={day.dateStr} style={{
+                background: '#0f172a',
+                border: day.isToday ? '1px solid #3b82f6' : `1px solid ${stocks.length ? '#253147' : '#1e293b'}`,
+                borderRadius: isMobile ? 8 : 12,
+                overflow: 'hidden',
+                boxShadow: day.isToday ? '0 0 0 2px rgba(59,130,246,0.2)' : 'none',
+                minHeight: isMobile ? 70 : 100,
+              }}>
+                {/* Day header */}
+                <div style={{
+                  padding: isMobile ? '6px 6px 4px' : '10px 10px 6px',
+                  borderBottom: `1px solid ${day.isToday ? 'rgba(59,130,246,0.3)' : '#1e293b'}`,
+                  background: day.isToday ? 'rgba(59,130,246,0.1)' : 'transparent',
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: isMobile ? 7 : 8, fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: day.isToday ? '#60a5fa' : '#334155' }}>
+                    {day.dayName}
+                  </div>
+                  <div style={{ fontSize: isMobile ? 15 : 22, fontWeight: 800, lineHeight: 1.1, marginTop: 2, color: day.isToday ? '#e2e8f0' : day.isPast ? '#2d3748' : '#64748b' }}>
+                    {day.dayNum}
+                  </div>
+                  {!isMobile && (
+                    <div style={{ fontSize: 8, color: '#334155', fontFamily: 'monospace', marginTop: 1 }}>{day.monthAbbr}</div>
+                  )}
+                  {stocks.length > 0 && (
+                    <div style={{ marginTop: 4, fontSize: 8, fontFamily: 'monospace', fontWeight: 700, color: day.isPast ? '#334155' : '#3b82f6' }}>
+                      {stocks.length} co{stocks.length !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+
+                {/* Stocks */}
+                <div style={{ padding: '3px 0', overflowY: 'auto', maxHeight: isMobile ? 140 : 280 }}>
+                  {stocks.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: isMobile ? '10px 4px' : '18px 8px', color: '#1e293b', fontSize: 10 }}>—</div>
+                  ) : isMobile ? (
+                    // Mobile: tiny chips
+                    stocks.map(s => (
+                      <div key={s.ticker}
+                        onClick={() => setPopupStock(s)}
+                        style={{ margin: '2px 3px', padding: '3px 4px', borderRadius: 4, cursor: 'pointer', background: `${rsColor(s.rs)}10`, border: `1px solid ${rsColor(s.rs)}25` }}
+                      >
+                        <div style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 800, color: rsColor(s.rs), letterSpacing: '-0.3px' }}>{s.ticker}</div>
+                        {emData[s.ticker] && <div style={{ fontSize: 7, fontFamily: 'monospace', fontWeight: 700, color: emColor(emData[s.ticker]) }}>±{emData[s.ticker]}%</div>}
+                      </div>
+                    ))
+                  ) : (
+                    // Desktop: detailed cards
+                    stocks.map(s => (
+                      <WeekStockCard
+                        key={s.ticker}
+                        stock={s}
+                        isReported={day.isPast}
+                        em={emData[s.ticker]}
+                        emLoading={emLoading && !day.isPast && emData[s.ticker] == null}
+                        onClick={() => setPopupStock(s)}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {weekOffset !== 0 && (
-        <button onClick={() => setWeekOffset(0)} style={{ padding: '5px 14px', fontSize: 11, fontFamily: 'monospace', fontWeight: 700, borderRadius: 8, border: '1px solid #1d4ed8', background: 'rgba(29,78,216,0.15)', color: '#60a5fa', cursor: 'pointer' }}>↩ Now</button>
-      )}
-
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-        {upcomingCount > 0 && <Pill color="#3b82f6" label={`🔔 ${upcomingCount} upcoming`} />}
-        {recentCount   > 0 && <Pill color="#475569" label={`✓ ${recentCount} reported`} />}
+      {/* Divider */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <div style={{ flex: 1, height: 1, background: '#1e293b' }} />
+        <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#334155' }}>Monthly View</span>
+        <div style={{ flex: 1, height: 1, background: '#1e293b' }} />
       </div>
 
-      {!isMobile && upcomingCount > 0 && (
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, fontFamily: 'monospace', color: '#475569' }}>
-          <span>EXP MOVE:</span>
-          {[['<5%','#22d3ee'],['5–8%','#60a5fa'],['8–12%','#f59e0b'],['>12%','#ef4444']].map(([l,c]) => (
-            <span key={l} style={{ color: c }}>{l}</span>
+      {/* ══════════════════════════════════════════════════
+          SECTION 2 — MONTHLY CALENDAR
+      ══════════════════════════════════════════════════ */}
+      <div>
+
+        {/* Month nav */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: 3 }}>
+            <button onClick={() => setMonthOffset(m => m - 1)} style={navBtn}>‹</button>
+            <span style={{ fontSize: isMobile ? 12 : 14, fontFamily: 'monospace', color: '#94a3b8', fontWeight: 700, minWidth: isMobile ? 120 : 170, textAlign: 'center' }}>
+              🗓 {monthGrid.label}
+            </span>
+            <button onClick={() => setMonthOffset(m => m + 1)} style={navBtn}>›</button>
+          </div>
+
+          {monthOffset !== 0 && (
+            <button onClick={() => setMonthOffset(0)} style={pillBtn()}>↩ This Month</button>
+          )}
+
+          {monthCount > 0 && (
+            <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, padding: '3px 10px', borderRadius: 20, color: '#60a5fa', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)' }}>
+              {monthCount} earning{monthCount !== 1 ? 's' : ''} this month
+            </span>
+          )}
+        </div>
+
+        {/* Calendar grid */}
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, overflow: 'hidden' }}>
+
+          {/* Day-of-week headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #1e293b' }}>
+            {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((d, di) => (
+              <div key={d} style={{
+                padding: isMobile ? '6px 0' : '9px 10px',
+                fontSize: isMobile ? 7 : 8,
+                fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em',
+                color: di >= 5 ? '#1e3a5f' : '#475569',
+                textAlign: 'center',
+                borderRight: di < 6 ? '1px solid #1e293b' : 'none',
+                background: di >= 5 ? 'rgba(0,0,0,0.2)' : 'transparent',
+              }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Weeks */}
+          {monthGrid.weeks.map((week, wi) => (
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < monthGrid.weeks.length - 1 ? '1px solid #1e293b' : 'none' }}>
+              {week.map((day, di) => {
+                const stocks = byDate[day.dateStr] || [];
+                return (
+                  <div
+                    key={day.dateStr}
+                    style={{
+                      minHeight: isMobile ? 52 : 90,
+                      padding: isMobile ? '4px 3px' : '7px 8px',
+                      borderRight: di < 6 ? '1px solid #1e293b' : 'none',
+                      background: day.isToday
+                        ? 'rgba(59,130,246,0.07)'
+                        : day.isWeekend ? 'rgba(0,0,0,0.15)' : 'transparent',
+                      opacity: day.isCurrentMonth ? 1 : 0.2,
+                      transition: 'background 0.1s',
+                    }}
+                  >
+                    {/* Day number */}
+                    <div style={{ marginBottom: stocks.length ? (isMobile ? 2 : 5) : 0 }}>
+                      {day.isToday ? (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          width: isMobile ? 16 : 22, height: isMobile ? 16 : 22,
+                          background: '#3b82f6', color: 'white', borderRadius: '50%',
+                          fontSize: isMobile ? 8 : 11, fontFamily: 'monospace', fontWeight: 800,
+                        }}>{day.dayNum}</span>
+                      ) : (
+                        <span style={{
+                          fontSize: isMobile ? 9 : 11,
+                          fontFamily: 'monospace', fontWeight: 600,
+                          color: day.isPast ? '#2d3748' : '#475569',
+                        }}>{day.dayNum}</span>
+                      )}
+                    </div>
+
+                    {/* Stock chips */}
+                    {stocks.map(s => (
+                      <MonthChip
+                        key={s.ticker}
+                        stock={s}
+                        isReported={day.isPast}
+                        em={emData[s.ticker]}
+                        onClick={setPopupStock}
+                      />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           ))}
         </div>
-      )}
-    </div>
-  );
-
-  // ── Empty state ───────────────────────────────────────────────────────
-  if (grouped.length === 0) return (
-    <div style={{ maxWidth: isMobile ? '100%' : 960, margin: '0 auto', padding: isMobile ? '0 4px' : 0 }}>
-      {toolbar}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: isMobile ? '40px 20px' : '56px 32px', textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>📭</div>
-        <div style={{ fontWeight: 800, fontSize: 14, color: '#94a3b8', marginBottom: 10 }}>No earnings in this window</div>
-        <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8, maxWidth: 420, margin: '0 auto' }}>
-          Data loads on open (~30s). Seasons: Q1 <span style={{ color: '#60a5fa' }}>Apr–May</span> · Q2 <span style={{ color: '#60a5fa' }}>Jul–Aug</span> · Q3 <span style={{ color: '#60a5fa' }}>Oct–Nov</span> · Q4 <span style={{ color: '#60a5fa' }}>Jan–Feb</span>
-        </div>
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <ActionBtn onClick={() => setWeekOffset(w => w + 1)} accent="#1d4ed8">Next window →</ActionBtn>
-          {weekOffset !== 0 && <ActionBtn onClick={() => setWeekOffset(0)} accent="#1e293b">← Back to now</ActionBtn>}
-        </div>
-      </div>
-    </div>
-  );
-
-  // ── Calendar ──────────────────────────────────────────────────────────
-  return (
-    <div style={{ maxWidth: isMobile ? '100%' : 960, margin: '0 auto', padding: isMobile ? '0 4px' : 0 }}>
-      {toolbar}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {grouped.map(({ date, stocks, isReported }) => {
-          const fmt = formatDateLabel(date);
-          return (
-            <div key={date}>
-              {/* Date header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: '0 4px' }}>
-                <div style={{ width: 3, height: isMobile ? 28 : 32, borderRadius: 2, background: isReported ? '#1e293b' : fmt.accent, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 800, color: isReported ? '#475569' : '#e2e8f0', letterSpacing: '-0.3px' }}>{fmt.label}</div>
-                  <div style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace' }}>{fmt.sub}</div>
-                </div>
-                <div style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, padding: '3px 9px', borderRadius: 20, marginLeft: 2,
-                  color: isReported ? '#475569' : '#60a5fa',
-                  background: isReported ? '#0f172a' : 'rgba(59,130,246,0.1)',
-                  border: `1px solid ${isReported ? '#1e293b' : 'rgba(59,130,246,0.25)'}`,
-                }}>
-                  {isReported ? `✓ ${stocks.length}` : `${stocks.length} cos`}
-                </div>
-              </div>
-
-              {/* Card */}
-              <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-                {/* Desktop-only column headers */}
-                {!isMobile && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '8px 62px 1fr 32px 76px 58px 80px 24px', alignItems: 'center', gap: 10, padding: '6px 16px', borderBottom: '1px solid #1e293b', opacity: 0.5 }}>
-                    <div /><div />
-                    <span style={colH}>Company</span>
-                    <span style={{ ...colH, textAlign: 'center' }}>RS</span>
-                    <span style={{ ...colH, textAlign: 'right' }}>Price</span>
-                    <span style={{ ...colH, textAlign: 'center' }}>Exp Move</span>
-                    <span style={{ ...colH, textAlign: 'right' }}>Mkt Cap</span>
-                    <div />
-                  </div>
-                )}
-
-                {/* Rows */}
-                {stocks.map((s, i) => {
-                  const sep = { borderBottom: i < stocks.length - 1 ? '1px solid #0d1627' : 'none' };
-                  const em = !isReported ? emData[s.ticker] : undefined;
-                  const loading = !isReported && emLoading && em == null;
-                  const row = isMobile
-                    ? <EarningsRowMobile key={s.ticker} stock={s} isReported={isReported} em={em} emLoading={loading} onClick={() => setPopupStock(s)} />
-                    : <EarningsRowDesktop key={s.ticker} stock={s} isReported={isReported} em={em} emLoading={loading} onClick={() => setPopupStock(s)} />;
-                  return <div key={s.ticker} style={sep}>{row}</div>;
-                })}
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       <p style={{ textAlign: 'center', fontSize: 10, color: '#334155', marginTop: 16, fontFamily: 'monospace', padding: '0 8px' }}>
-        Dates: Yahoo Finance · Exp Move: ATM straddle ÷ price · Tap row for chart
+        Dates: Yahoo Finance · Exp Move: ATM straddle ÷ price · לחץ על טיקר לצפייה בגרף
       </p>
 
       {popupStock && (
-        <TickerInfoPopup ticker={popupStock.ticker} stock={popupStock}
-          onClose={() => setPopupStock(null)} allStocks={allStocks} onClip={onClip} />
+        <TickerInfoPopup
+          ticker={popupStock.ticker}
+          stock={popupStock}
+          onClose={() => setPopupStock(null)}
+          allStocks={allStocks}
+          onClip={onClip}
+        />
       )}
     </div>
   );
