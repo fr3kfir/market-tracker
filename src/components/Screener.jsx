@@ -446,8 +446,16 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
         >EXPAND ↗</button>
       </div>
 
-      {/* Candlestick chart — lightweight-charts, real OHLCV + MA50 + MA200 + Volume */}
-      <TVChart ticker={stock.ticker} range={range} height={320} />
+      {/* Chart area — stop propagation so mouse drag/scroll stays inside the chart
+          and doesn't trigger the card's clip-on-click behaviour               */}
+      <div
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        onWheel={e => e.stopPropagation()}
+        style={{ userSelect: 'text' }}
+      >
+        <TVChart ticker={stock.ticker} range={range} height={320} />
+      </div>
     </div>
   );
 }

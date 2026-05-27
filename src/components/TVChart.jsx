@@ -155,21 +155,21 @@ export default function TVChart({ ticker, range = '1D', height = 320 }) {
     });
     cSeries.setData(ohlcv);
 
-    // ── MA 50 (blue) ─────────────────────────────────────────────────
+    // ── MA 50 (orange) ───────────────────────────────────────────────
     const ma50 = calcSMA(ohlcv, 50);
     if (ma50.length) {
       const ma50s = chart.addSeries(LineSeries, {
-        color: '#3b82f6', lineWidth: 1,
+        color: '#f97316', lineWidth: 1.5,
         priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
       });
       ma50s.setData(ma50);
     }
 
-    // ── MA 200 (amber) ───────────────────────────────────────────────
+    // ── MA 200 (red) ─────────────────────────────────────────────────
     const ma200 = calcSMA(ohlcv, 200);
     if (ma200.length) {
       const ma200s = chart.addSeries(LineSeries, {
-        color: '#f59e0b', lineWidth: 1,
+        color: '#dc2626', lineWidth: 1.5,
         priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
       });
       ma200s.setData(ma200);
