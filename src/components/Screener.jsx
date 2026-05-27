@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { SECTOR_STOCKS, INDUSTRY_GROUPS } from '../data/stockUniverse';
 import TickerInfoPopup from './TickerInfoPopup';
 import Sparkline from './Sparkline';
-import MiniChart from './MiniChart';
+import TVChart from './TVChart';
 import { CLIP_COLORS, CLIP_BG } from './ClipboardPanel';
 
 const RS_COLOR = rs => rs >= 80 ? '#10b981' : rs >= 60 ? '#3b82f6' : rs >= 40 ? '#f59e0b' : '#e879f9';
@@ -446,8 +446,8 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
         >EXPAND ↗</button>
       </div>
 
-      {/* TradingView Advanced Chart — candlesticks + MA50 + MA200 + Volume */}
-      <MiniChart ticker={stock.ticker} range={range} height={320} advanced={true} />
+      {/* Candlestick chart — lightweight-charts, real OHLCV + MA50 + MA200 + Volume */}
+      <TVChart ticker={stock.ticker} range={range} height={320} />
     </div>
   );
 }

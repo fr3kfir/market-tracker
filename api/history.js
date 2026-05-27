@@ -5,9 +5,12 @@ const yf = new YahooFinance();
 
 function rangeToDate(range) {
   const d = new Date();
-  if (range === '1y')  d.setFullYear(d.getFullYear() - 1);
+  if      (range === '2y')  d.setFullYear(d.getFullYear() - 2);
+  else if (range === '1y')  d.setFullYear(d.getFullYear() - 1);
   else if (range === '6mo') d.setMonth(d.getMonth() - 6);
   else if (range === '3mo') d.setMonth(d.getMonth() - 3);
+  else if (range === '1mo') d.setMonth(d.getMonth() - 1);
+  else if (range === '5d')  d.setDate(d.getDate() - 8); // ~5 trading days
   else d.setFullYear(d.getFullYear() - 1);
   return d;
 }
