@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { SECTOR_STOCKS, INDUSTRY_GROUPS } from '../data/stockUniverse';
 import TickerInfoPopup from './TickerInfoPopup';
+import Sparkline from './Sparkline';
 import MiniChart from './MiniChart';
 import { CLIP_COLORS, CLIP_BG } from './ClipboardPanel';
 
@@ -311,10 +312,10 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, s
           {stock.ticker}
         </span>
       </td>
-      {/* Inline mini sparkline chart */}
+      {/* Inline mini sparkline — SVG, no iframe, renders at any height */}
       {showMiniCharts && (
-        <td style={{ padding: '2px 4px', width: 200 }} onClick={e => e.stopPropagation()}>
-          <MiniChart ticker={stock.ticker} range={chartRange || '1D'} height={90} advanced={false} />
+        <td style={{ padding: '4px 6px', width: 196 }} onClick={e => e.stopPropagation()}>
+          <Sparkline ticker={stock.ticker} width={184} height={56} />
         </td>
       )}
       <td style={{ padding: '7px 10px', fontSize: 11, color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stock.name || '—'}</td>
