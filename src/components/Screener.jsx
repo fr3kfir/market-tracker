@@ -38,6 +38,24 @@ const PRESETS = [
     groupRankMax: 40,
   },
   {
+    label: '🛡️ Relative Strength',
+    desc:  'Beating the market (SPY) by ≥ 2% today — stocks showing real strength vs the index',
+    filters: { relVsMktMin: 2 },
+    groupRankMax: null,
+  },
+  {
+    label: '🚀 Today\'s Rockets',
+    desc:  'Up ≥ 4% today with volume surge ≥ 1.5× — breakout movers regardless of RS/Stage',
+    filters: { changeMin: 4, volBuzzMin: 1.5 },
+    groupRankMax: null,
+  },
+  {
+    label: '💎 Holding Up',
+    desc:  'Outperforming SPY by ≥ 3% — holds up or rises while the market falls',
+    filters: { relVsMktMin: 3 },
+    groupRankMax: null,
+  },
+  {
     label: '📈 1-Week Movers',
     desc:  '1-week return ≥ 5% — strong momentum names',
     filters: { w1Min: 5 },
@@ -92,6 +110,7 @@ const DEFAULT_FILTERS = {
   rsMin: '', rsMax: '',
   distSma50Min: '', distSma50Max: '', distSma200Min: '', distSma200Max: '',
   changeMin: '', changeMax: '', changeFromOpenMin: '', changeFromOpenMax: '',
+  relVsMktMin: '', relVsMktMax: '',
   distHighMin: '', distHighMax: '', distLowMin: '', distLowMax: '',
   betaMin: '', betaMax: '', volBuzzMin: '', volBuzzMax: '',
   avgVolMin: '', avgVolMax: '', volumeMin: '', volumeMax: '',
@@ -136,6 +155,7 @@ function applyFilters(stocks, f, groupRankMax, tickerGroupRank) {
     if (!pass(s.distSma200,      'distSma200Min',     'distSma200Max',     f)) return false;
     if (!pass(s.change,          'changeMin',         'changeMax',         f)) return false;
     if (!pass(s.changeFromOpen,  'changeFromOpenMin', 'changeFromOpenMax', f)) return false;
+    if (!pass(s.relVsMarket,     'relVsMktMin',       'relVsMktMax',       f)) return false;
     if (!pass(s.distSma52wHigh,  'distHighMin',       'distHighMax',       f)) return false;
     if (!pass(s.distSma52wLow,   'distLowMin',        'distLowMax',        f)) return false;
     if (!pass(s.beta,            'betaMin',           'betaMax',           f)) return false;
@@ -157,6 +177,26 @@ function PerfCell({ value }) {
   if (value == null) return <span style={{ color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 11 }}>—</span>;
   const color = value >= 0 ? '#34d399' : '#f87171';
   return <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color }}>{value >= 0 ? '+' : ''}{value.toFixed(2)}%</span>;
+}
+
+// Relative-Strength-vs-SPY cell — uses shield icon to signal market outperformance
+function VsSpyCell({ value }) {
+  if (value == null) return <span style={{ color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 11 }}>—</span>;
+  // Color scale: strong outperform (≥3) → bright green, mild (0–3) → dim green,
+  // mild under (0 to -3) → dim red, strong under (≤-3) → bright red
+  const abs = Math.abs(value);
+  let color;
+  if (value >= 3)        color = '#10b981';
+  else if (value >= 0)   color = '#6ee7b7';
+  else if (value >= -3)  color = '#fca5a5';
+  else                   color = '#f87171';
+  return (
+    <span title={`vs SPY: ${value >= 0 ? '+' : ''}${value.toFixed(1)}%`}
+      style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color,
+               display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+      {value >= 0 ? '▲' : '▼'} {abs.toFixed(1)}%
+    </span>
+  );
 }
 
 function GroupRankBadge({ rank, name }) {
@@ -288,6 +328,9 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, s
       </td>
       <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: 12, color: 'var(--text)', textAlign: 'right' }}>{stock.price != null ? `$${stock.price.toFixed(2)}` : '—'}</td>
       <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfCell value={stock.change} /></td>
+      <td style={{ padding: '7px 10px', textAlign: 'right' }}>
+        <VsSpyCell value={stock.relVsMarket} />
+      </td>
       <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfCell value={stock.w1} /></td>
       <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfCell value={stock.m1} /></td>
       <td style={{ padding: '7px 10px', textAlign: 'right' }}><PerfCell value={stock.m3} /></td>
@@ -372,6 +415,19 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
         )}
         {/* Spacer */}
         <div style={{ flex: 1 }} />
+        {/* vs SPY badge */}
+        {stock.relVsMarket != null && (
+          <span
+            title={`vs SPY: ${stock.relVsMarket >= 0 ? '+' : ''}${stock.relVsMarket.toFixed(1)}%`}
+            style={{
+              fontSize: 9, fontFamily: 'monospace', fontWeight: 700, flexShrink: 0,
+              color: stock.relVsMarket >= 2 ? '#10b981' : stock.relVsMarket >= 0 ? '#6ee7b7' : stock.relVsMarket >= -2 ? '#fca5a5' : '#f87171',
+              background: stock.relVsMarket >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(248,113,113,0.12)',
+              padding: '1px 5px', borderRadius: 4,
+            }}>
+            {stock.relVsMarket >= 0 ? '▲' : '▼'} {Math.abs(stock.relVsMarket).toFixed(1)}% SPY
+          </span>
+        )}
         {/* Change % */}
         <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: changeColor, flexShrink: 0 }}>
           {change >= 0 ? '+' : ''}{change.toFixed(2)}%
@@ -663,6 +719,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                 <RangeRow label="Price ($)"            minKey="priceMin"          maxKey="priceMax"          {...sf} step="0.01" />
                 <RangeRow label="Change Today (%)"     minKey="changeMin"         maxKey="changeMax"         {...sf} />
                 <RangeRow label="Change from Open (%)" minKey="changeFromOpenMin" maxKey="changeFromOpenMax" {...sf} />
+                <RangeRow label="vs SPY Today (%)"     minKey="relVsMktMin"       maxKey="relVsMktMax"       {...sf} note="stock% − SPY%" />
                 <RangeRow label="Target Price Upside (%)" minKey="targetUpsideMin" maxKey="targetUpsideMax"  {...sf} />
               </FilterGroup>
               <FilterGroup title="52-Week Range">
@@ -773,7 +830,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       {viewMode === 'list' && (
         <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: showMiniCharts ? 1180 : 980 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: showMiniCharts ? 1280 : 1080 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <SortTh label="Ticker"    col="ticker"         align="left" {...thProps} />
@@ -786,6 +843,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                   <SortTh label="Group"     col="groupRank"      align="left" title="Industry Group Rank" {...thProps} />
                   <SortTh label="Price"     col="price"          {...thProps} />
                   <SortTh label="Today"     col="change"         {...thProps} />
+                  <SortTh label="vs SPY"    col="relVsMarket"    title="Today's change minus SPY's change — positive = outperforming the market" {...thProps} />
                   <SortTh label="1W"        col="w1"             {...thProps} />
                   <SortTh label="1M"        col="m1"             {...thProps} />
                   <SortTh label="3M"        col="m3"             {...thProps} />
@@ -799,7 +857,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
               </thead>
               <tbody>
                 {sorted.length === 0 ? (
-                  <tr><td colSpan={showMiniCharts ? 15 : 14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
+                  <tr><td colSpan={showMiniCharts ? 16 : 15} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
                 ) : sorted.map((stock, i) => {
                   const gi = tickerToGroupInfo[stock.ticker];
                   return (

@@ -324,8 +324,10 @@ export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeE
   const themes = Object.keys(themeStocksMap);
 
   // Quotes refresh every cycle; history is cached for 10 minutes
+  // Always include SPY so we can compute relative-strength-vs-market for every stock
+  const fetchSymbols = [...new Set([...allUniqueStocks, ...allEtfSymbols, 'SPY'])];
   const [quotes, history] = await Promise.all([
-    fetchQuotes([...allUniqueStocks, ...allEtfSymbols]),
+    fetchQuotes(fetchSymbols),
     getCachedHistory(allEtfSymbols),
   ]);
 
@@ -334,6 +336,14 @@ export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeE
   const rsRatings = calcRsRatings(quotes);
   const processedStocks = quotes.map(q => processQuote(q, rsRatings));
   const stocksByTicker = Object.fromEntries(processedStocks.map(s => [s.ticker, s]));
+
+  // ── Relative Strength vs Market (SPY) ─────────────────────────────────
+  // relVsMarket = stock's today-change minus SPY's today-change.
+  // Positive → outperforming the market; negative → lagging it.
+  const spyChange = stocksByTicker['SPY']?.change ?? 0;
+  Object.values(stocksByTicker).forEach(s => {
+    s.relVsMarket = Math.round((s.change - spyChange) * 10) / 10;
+  });
 
   const sectorStocks = processedStocks.filter(s => allSymbols.includes(s.ticker));
   const breadth = calcBreadth(sectorStocks);
