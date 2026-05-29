@@ -107,7 +107,7 @@ function RsRing({ rs }) {
 // ── WeekStockCard: detailed card inside a day column ─────────────────────────
 function WeekStockCard({ stock, isReported, em, emLoading, onClick }) {
   const [hover, setHover] = useState(false);
-  const stageC = STAGE_COLORS[stock.stage] || '#475569';
+  const stageC = STAGE_COLORS[stock.stage] || '#64748b';
   const change = stock.change ?? 0;
   return (
     <div
@@ -115,32 +115,32 @@ function WeekStockCard({ stock, isReported, em, emLoading, onClick }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        padding: '7px 9px', margin: '3px 5px', borderRadius: 8, cursor: 'pointer',
-        background: hover ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.02)',
-        border: `1px solid ${hover ? 'rgba(59,130,246,0.25)' : '#1e293b'}`,
-        opacity: isReported ? 0.5 : 1,
+        padding: '8px 10px', margin: '3px 6px', borderRadius: 8, cursor: 'pointer',
+        background: hover ? 'rgba(59,130,246,0.1)' : isReported ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${hover ? 'rgba(59,130,246,0.4)' : isReported ? '#1e293b' : '#2d3f55'}`,
+        opacity: isReported ? 0.45 : 1,
         transition: 'all 0.12s',
       }}
     >
       {/* Row 1: Ticker + Stage badge + ✓ */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-        <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 800, color: rsColor(stock.rs), letterSpacing: '-0.5px' }}>{stock.ticker}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+        <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: rsColor(stock.rs), letterSpacing: '-0.5px' }}>{stock.ticker}</span>
         {stock.stage && (
-          <span style={{ fontFamily: 'monospace', fontSize: 7, fontWeight: 700, color: stageC, background: STAGE_BG[stock.stage] || '#1e293b', padding: '1px 3px', borderRadius: 2 }}>{stock.stage}</span>
+          <span style={{ fontFamily: 'monospace', fontSize: 8, fontWeight: 700, color: stageC, background: STAGE_BG[stock.stage] || '#1e293b', padding: '1px 4px', borderRadius: 3 }}>{stock.stage}</span>
         )}
-        {isReported && <span style={{ fontSize: 8, color: '#22c55e', marginLeft: 'auto' }}>✓</span>}
+        {isReported && <span style={{ fontSize: 9, color: '#22c55e', marginLeft: 'auto' }}>✓ reported</span>}
       </div>
       {/* Row 2: Company name */}
-      <div style={{ fontSize: 9, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 5 }}>{stock.name}</div>
+      <div style={{ fontSize: 10, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 6 }}>{stock.name}</div>
       {/* Row 3: EM + RS ring + Price */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         {!isReported
           ? <EmBadge em={em} loading={emLoading} compact />
-          : stock.change != null && <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: change >= 0 ? '#34d399' : '#f87171' }}>{change >= 0 ? '+' : ''}{change.toFixed(1)}%</span>
+          : stock.change != null && <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: change >= 0 ? '#34d399' : '#f87171' }}>{change >= 0 ? '+' : ''}{change.toFixed(1)}%</span>
         }
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
           <RsRing rs={stock.rs} />
-          {stock.price != null && <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#475569' }}>${stock.price.toFixed(0)}</span>}
+          {stock.price != null && <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#94a3b8' }}>${stock.price.toFixed(0)}</span>}
         </div>
       </div>
     </div>
@@ -159,21 +159,20 @@ function MonthChip({ stock, isReported, em, onClick }) {
       title={`${stock.ticker} — ${stock.name}${em ? ` · EM ±${em}%` : ''}${stock.rs ? ` · RS ${stock.rs}` : ''}`}
       style={{
         display: 'flex', alignItems: 'center', gap: 3,
-        padding: '2px 5px', borderRadius: 3, marginBottom: 2,
+        padding: '3px 6px', borderRadius: 4, marginBottom: 3,
         cursor: 'pointer',
-        fontSize: 9, fontFamily: 'monospace', fontWeight: 800,
+        fontSize: 10, fontFamily: 'monospace', fontWeight: 800,
         letterSpacing: '-0.3px',
-        background: hover ? `${c}22` : `${c}0e`,
-        border: `1px solid ${hover ? `${c}60` : `${c}28`}`,
-        color: isReported ? '#475569' : c,
-        opacity: isReported ? 0.55 : 1,
+        background: hover ? `${c}28` : isReported ? 'rgba(255,255,255,0.03)' : `${c}16`,
+        border: `1px solid ${hover ? `${c}70` : isReported ? '#1e2d42' : `${c}40`}`,
+        color: isReported ? '#4b5563' : c,
         transition: 'all 0.1s',
         overflow: 'hidden', whiteSpace: 'nowrap',
       }}
     >
       {stock.ticker}
-      {em && !isReported && <span style={{ fontSize: 8, color: emColor(em), fontWeight: 700 }}>±{em}%</span>}
-      {isReported && <span style={{ color: '#22c55e', fontSize: 8 }}>✓</span>}
+      {em && !isReported && <span style={{ fontSize: 9, color: emColor(em), fontWeight: 700 }}>±{em}%</span>}
+      {isReported && <span style={{ color: '#22c55e', fontSize: 9 }}>✓</span>}
     </div>
   );
 }
@@ -292,46 +291,46 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
             const stocks = byDate[day.dateStr] || [];
             return (
               <div key={day.dateStr} style={{
-                background: '#0f172a',
-                border: day.isToday ? '1px solid #3b82f6' : `1px solid ${stocks.length ? '#253147' : '#1e293b'}`,
+                background: day.isToday ? '#0f1f35' : day.isPast ? '#0a0f18' : '#0d1825',
+                border: day.isToday ? '1.5px solid #3b82f6' : `1px solid ${stocks.length && !day.isPast ? '#2a3f58' : '#1a2535'}`,
                 borderRadius: isMobile ? 8 : 12,
                 overflow: 'hidden',
-                boxShadow: day.isToday ? '0 0 0 2px rgba(59,130,246,0.2)' : 'none',
+                boxShadow: day.isToday ? '0 0 0 3px rgba(59,130,246,0.15)' : 'none',
                 minHeight: isMobile ? 70 : 100,
               }}>
                 {/* Day header */}
                 <div style={{
-                  padding: isMobile ? '6px 6px 4px' : '10px 10px 6px',
-                  borderBottom: `1px solid ${day.isToday ? 'rgba(59,130,246,0.3)' : '#1e293b'}`,
-                  background: day.isToday ? 'rgba(59,130,246,0.1)' : 'transparent',
+                  padding: isMobile ? '6px 6px 4px' : '10px 10px 7px',
+                  borderBottom: `1px solid ${day.isToday ? 'rgba(59,130,246,0.35)' : '#1a2535'}`,
+                  background: day.isToday ? 'rgba(59,130,246,0.12)' : day.isPast ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.02)',
                   textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: isMobile ? 7 : 8, fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: day.isToday ? '#60a5fa' : '#334155' }}>
+                  <div style={{ fontSize: isMobile ? 7 : 9, fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: day.isToday ? '#93c5fd' : day.isPast ? '#374151' : '#64748b' }}>
                     {day.dayName}
                   </div>
-                  <div style={{ fontSize: isMobile ? 15 : 22, fontWeight: 800, lineHeight: 1.1, marginTop: 2, color: day.isToday ? '#e2e8f0' : day.isPast ? '#2d3748' : '#64748b' }}>
+                  <div style={{ fontSize: isMobile ? 15 : 24, fontWeight: 800, lineHeight: 1.1, marginTop: 2, color: day.isToday ? '#f0f6ff' : day.isPast ? '#374151' : '#cbd5e1' }}>
                     {day.dayNum}
                   </div>
                   {!isMobile && (
-                    <div style={{ fontSize: 8, color: '#334155', fontFamily: 'monospace', marginTop: 1 }}>{day.monthAbbr}</div>
+                    <div style={{ fontSize: 9, color: day.isPast ? '#374151' : '#475569', fontFamily: 'monospace', marginTop: 1 }}>{day.monthAbbr}</div>
                   )}
                   {stocks.length > 0 && (
-                    <div style={{ marginTop: 4, fontSize: 8, fontFamily: 'monospace', fontWeight: 700, color: day.isPast ? '#334155' : '#3b82f6' }}>
+                    <div style={{ marginTop: 4, fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: day.isPast ? '#4b5563' : '#60a5fa' }}>
                       {stocks.length} co{stocks.length !== 1 ? 's' : ''}
                     </div>
                   )}
                 </div>
 
                 {/* Stocks */}
-                <div style={{ padding: '3px 0', overflowY: 'auto', maxHeight: isMobile ? 140 : 280 }}>
+                <div style={{ padding: '4px 0', overflowY: 'auto', maxHeight: isMobile ? 140 : 280 }}>
                   {stocks.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: isMobile ? '10px 4px' : '18px 8px', color: '#1e293b', fontSize: 10 }}>—</div>
+                    <div style={{ textAlign: 'center', padding: isMobile ? '10px 4px' : '20px 8px', color: '#1e293b', fontSize: 11 }}>—</div>
                   ) : isMobile ? (
                     // Mobile: tiny chips
                     stocks.map(s => (
                       <div key={s.ticker}
                         onClick={() => setPopupStock(s)}
-                        style={{ margin: '2px 3px', padding: '3px 4px', borderRadius: 4, cursor: 'pointer', background: `${rsColor(s.rs)}10`, border: `1px solid ${rsColor(s.rs)}25` }}
+                        style={{ margin: '2px 3px', padding: '3px 5px', borderRadius: 4, cursor: 'pointer', background: `${rsColor(s.rs)}15`, border: `1px solid ${rsColor(s.rs)}35` }}
                       >
                         <div style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 800, color: rsColor(s.rs), letterSpacing: '-0.3px' }}>{s.ticker}</div>
                         {emData[s.ticker] && <div style={{ fontSize: 7, fontFamily: 'monospace', fontWeight: 700, color: emColor(emData[s.ticker]) }}>±{emData[s.ticker]}%</div>}
@@ -391,56 +390,55 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
         </div>
 
         {/* Calendar grid */}
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ background: '#0b1120', border: '1px solid #1e2d42', borderRadius: 14, overflow: 'hidden' }}>
 
           {/* Day-of-week headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #1e293b' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #1e2d42', background: '#0d1825' }}>
             {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((d, di) => (
               <div key={d} style={{
-                padding: isMobile ? '6px 0' : '9px 10px',
-                fontSize: isMobile ? 7 : 8,
-                fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em',
-                color: di >= 5 ? '#1e3a5f' : '#475569',
+                padding: isMobile ? '7px 0' : '10px 10px',
+                fontSize: isMobile ? 7 : 9,
+                fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em',
+                color: di >= 5 ? '#2d3f55' : '#64748b',
                 textAlign: 'center',
-                borderRight: di < 6 ? '1px solid #1e293b' : 'none',
-                background: di >= 5 ? 'rgba(0,0,0,0.2)' : 'transparent',
+                borderRight: di < 6 ? '1px solid #1e2d42' : 'none',
               }}>{d}</div>
             ))}
           </div>
 
           {/* Weeks */}
           {monthGrid.weeks.map((week, wi) => (
-            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < monthGrid.weeks.length - 1 ? '1px solid #1e293b' : 'none' }}>
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: wi < monthGrid.weeks.length - 1 ? '1px solid #1a2535' : 'none' }}>
               {week.map((day, di) => {
                 const stocks = byDate[day.dateStr] || [];
                 return (
                   <div
                     key={day.dateStr}
                     style={{
-                      minHeight: isMobile ? 52 : 90,
-                      padding: isMobile ? '4px 3px' : '7px 8px',
-                      borderRight: di < 6 ? '1px solid #1e293b' : 'none',
+                      minHeight: isMobile ? 52 : 95,
+                      padding: isMobile ? '4px 3px' : '8px 8px',
+                      borderRight: di < 6 ? '1px solid #1a2535' : 'none',
                       background: day.isToday
-                        ? 'rgba(59,130,246,0.07)'
-                        : day.isWeekend ? 'rgba(0,0,0,0.15)' : 'transparent',
-                      opacity: day.isCurrentMonth ? 1 : 0.2,
+                        ? 'rgba(59,130,246,0.09)'
+                        : day.isWeekend ? 'rgba(0,0,0,0.25)' : 'transparent',
+                      opacity: day.isCurrentMonth ? 1 : 0.18,
                       transition: 'background 0.1s',
                     }}
                   >
                     {/* Day number */}
-                    <div style={{ marginBottom: stocks.length ? (isMobile ? 2 : 5) : 0 }}>
+                    <div style={{ marginBottom: stocks.length ? (isMobile ? 3 : 6) : 0 }}>
                       {day.isToday ? (
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          width: isMobile ? 16 : 22, height: isMobile ? 16 : 22,
+                          width: isMobile ? 18 : 24, height: isMobile ? 18 : 24,
                           background: '#3b82f6', color: 'white', borderRadius: '50%',
-                          fontSize: isMobile ? 8 : 11, fontFamily: 'monospace', fontWeight: 800,
+                          fontSize: isMobile ? 9 : 12, fontFamily: 'monospace', fontWeight: 800,
                         }}>{day.dayNum}</span>
                       ) : (
                         <span style={{
-                          fontSize: isMobile ? 9 : 11,
-                          fontFamily: 'monospace', fontWeight: 600,
-                          color: day.isPast ? '#2d3748' : '#475569',
+                          fontSize: isMobile ? 9 : 12,
+                          fontFamily: 'monospace', fontWeight: 700,
+                          color: day.isPast ? '#374151' : '#94a3b8',
                         }}>{day.dayNum}</span>
                       )}
                     </div>
