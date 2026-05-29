@@ -1,19 +1,28 @@
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
+function extractCookies(res) {
+  // getSetCookie returns an array in Node 18+; fall back to splitting set-cookie
+  const raw = typeof res.headers.getSetCookie === 'function'
+    ? res.headers.getSetCookie()
+    : (res.headers.get('set-cookie') || '').split(/,(?=[^ ])/).filter(Boolean);
+
+  // Each entry looks like "name=value; Path=/; Domain=…" — keep only "name=value"
+  return raw.map(h => h.split(';')[0].trim()).filter(Boolean).join('; ');
+}
+
 async function getCrumb() {
-  // Step 1: get cookie from Yahoo
   const cookieRes = await fetch('https://fc.yahoo.com/v1/test/csrfToken', {
     headers: { 'User-Agent': UA },
     redirect: 'follow',
   });
-  const cookie = cookieRes.headers.get('set-cookie') || '';
+  const cookie = extractCookies(cookieRes);
 
-  // Step 2: fetch crumb
   const crumbRes = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
     headers: { 'User-Agent': UA, Cookie: cookie },
   });
-  const crumb = await crumbRes.text();
-  return { crumb: crumb.trim(), cookie };
+  const crumb = (await crumbRes.text()).trim();
+  if (!crumb || crumb.length < 3) throw new Error('Failed to get crumb');
+  return { crumb, cookie };
 }
 
 export default async function handler(req, res) {
