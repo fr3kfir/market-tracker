@@ -222,6 +222,17 @@ export default function StockSearch({ stocksByTicker }) {
       const high52 = result.fiftyTwoWeekHigh;
       const low52 = result.fiftyTwoWeekLow;
       const distSma52wHigh = high52 ? Math.round(((price - high52) / high52) * 1000) / 10 : undefined;
+      let sector = result.sector || null;
+      let industry = result.industry || null;
+      // yahoo-finance2 quote() rarely returns sector/industry — fetch from assetProfile
+      if (!sector) {
+        try {
+          const pr = await fetch(`/api/profile?symbol=${encodeURIComponent(result.symbol)}`);
+          const pd = await pr.json();
+          sector = pd.sector || null;
+          industry = pd.industry || null;
+        } catch { /* ignore */ }
+      }
       const stock = {
         ticker: result.symbol,
         name: result.longName || result.shortName || result.symbol,
@@ -229,8 +240,8 @@ export default function StockSearch({ stocksByTicker }) {
         change: Math.round((result.regularMarketChangePercent || 0) * 100) / 100,
         high52, low52, distSma52wHigh,
         sma50, sma200,
-        sector: result.sector || null,
-        industry: result.industry || null,
+        sector,
+        industry,
       };
       // Also fetch history for w1/m1/m3/ytd
       try {
