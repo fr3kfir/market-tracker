@@ -4,6 +4,7 @@ import MarketTicker from './components/MarketTicker';
 import StageOverview from './components/StageOverview';
 import SectorTable from './components/SectorTable';
 import ThemeTracker from './components/ThemeTracker';
+import ThemeGrid from './components/ThemeGrid';
 import LeadersView from './components/LeadersView';
 import IndustryGroups from './components/IndustryGroups';
 import ArielDashboard from './components/ArielDashboard';
@@ -198,6 +199,7 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState('routine');
   const [desktopTab, setDesktopTab] = useState('routine');
   const [theme, setTheme] = useState(() => localStorage.getItem('mp-theme') || 'dark');
+  const [themesView, setThemesView] = useState('list'); // 'list' | 'grid'
 
   // Clipboard state
   const [clipboard, setClipboard] = useState({ long: [], short: [], universe: [] });
@@ -370,6 +372,15 @@ export default function App() {
     } finally {
       setHistoryLoading(false);
     }
+  }, []);
+
+  const handleGridStockClick = useCallback((stock) => {
+    const ticker = stock.ticker;
+    const singleStock = stocksByTickerRef.current[ticker];
+    if (!singleStock) return;
+    setLeaders([singleStock]);
+    setSelectedName(ticker);
+    setView('leaders');
   }, []);
 
   const handleBreadthFilter = useCallback((filterKey, filterLabel) => {
@@ -556,7 +567,34 @@ export default function App() {
           </div>
         )}
         {desktopTab === 'themes' && hotThemeData && (
-          <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+              <button
+                onClick={() => setThemesView('list')}
+                style={{
+                  fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+                  border: `1px solid ${themesView === 'list' ? '#3b82f6' : 'var(--border)'}`,
+                  background: themesView === 'list' ? 'rgba(59,130,246,0.15)' : 'transparent',
+                  color: themesView === 'list' ? '#3b82f6' : 'var(--text-muted)',
+                  fontWeight: themesView === 'list' ? 700 : 400, transition: 'all 0.15s',
+                }}
+              >☰ List</button>
+              <button
+                onClick={() => setThemesView('grid')}
+                style={{
+                  fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+                  border: `1px solid ${themesView === 'grid' ? '#3b82f6' : 'var(--border)'}`,
+                  background: themesView === 'grid' ? 'rgba(59,130,246,0.15)' : 'transparent',
+                  color: themesView === 'grid' ? '#3b82f6' : 'var(--text-muted)',
+                  fontWeight: themesView === 'grid' ? 700 : 400, transition: 'all 0.15s',
+                }}
+              >⊞ Grid</button>
+            </div>
+            {themesView === 'list'
+              ? <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
+              : <ThemeGrid themes={HOT_THEMES} stocksByTicker={stocksByTicker || {}} onStockClick={handleGridStockClick} />
+            }
+          </div>
         )}
         {desktopTab === 'screener' && (
           <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />
@@ -597,7 +635,18 @@ export default function App() {
         )}
         {mobileTab === 'groups'  && industryGroupData && <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
-        {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
+        {mobileTab === 'themes' && hotThemeData && (
+          <div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              <button onClick={() => setThemesView('list')} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${themesView === 'list' ? '#3b82f6' : 'var(--border)'}`, background: themesView === 'list' ? 'rgba(59,130,246,0.15)' : 'transparent', color: themesView === 'list' ? '#3b82f6' : 'var(--text-muted)', fontWeight: themesView === 'list' ? 700 : 400 }}>☰ List</button>
+              <button onClick={() => setThemesView('grid')} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${themesView === 'grid' ? '#3b82f6' : 'var(--border)'}`, background: themesView === 'grid' ? 'rgba(59,130,246,0.15)' : 'transparent', color: themesView === 'grid' ? '#3b82f6' : 'var(--text-muted)', fontWeight: themesView === 'grid' ? 700 : 400 }}>⊞ Grid</button>
+            </div>
+            {themesView === 'list'
+              ? <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
+              : <ThemeGrid themes={HOT_THEMES} stocksByTicker={stocksByTicker || {}} onStockClick={handleGridStockClick} />
+            }
+          </div>
+        )}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
