@@ -4,6 +4,7 @@ import MarketTicker from './components/MarketTicker';
 import StageOverview from './components/StageOverview';
 import SectorTable from './components/SectorTable';
 import ThemeTracker from './components/ThemeTracker';
+import SectorPerformanceGrid from './components/SectorPerformanceGrid';
 import LeadersView from './components/LeadersView';
 import IndustryGroups from './components/IndustryGroups';
 import ArielDashboard from './components/ArielDashboard';
@@ -546,17 +547,13 @@ export default function App() {
           <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />
         )}
         {desktopTab === 'sectors' && (
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
-            <div className="xl:col-span-3">
-              {sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
-            </div>
-            <div className="xl:col-span-2">
-              {hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {hotThemeData && <SectorPerformanceGrid themes={hotThemeData} onThemeClick={handleHotThemeClick} />}
+            {sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
           </div>
         )}
         {desktopTab === 'themes' && hotThemeData && (
-          <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
+          <SectorPerformanceGrid themes={hotThemeData} onThemeClick={handleHotThemeClick} />
         )}
         {desktopTab === 'screener' && (
           <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />
@@ -597,7 +594,7 @@ export default function App() {
         )}
         {mobileTab === 'groups'  && industryGroupData && <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
-        {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
+        {mobileTab === 'themes'  && hotThemeData && <SectorPerformanceGrid themes={hotThemeData} onThemeClick={handleHotThemeClick} />}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
