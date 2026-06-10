@@ -24,7 +24,9 @@ function emColor(em) {
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
-function toDateStr(d)     { return d.toISOString().slice(0, 10); }
+function toDateStr(d)     {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 // Mon–Fri for a given week offset (0 = this week)
 function getWeekDays(offset) {
