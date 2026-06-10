@@ -157,18 +157,18 @@ function ArielGuide() {
 }
 
 const TABS = [
-  { key: 'routine',  label: '⚡ Routine' },
+  { key: 'routine',  label: 'Routine' },
   { key: 'breadth',  label: 'Breadth' },
-  { key: 'ariel',    label: '📊 Ariel' },
+  { key: 'ariel',    label: 'Ariel' },
   { key: 'stage',    label: 'Stages' },
   { key: 'groups',   label: 'Groups' },
   { key: 'sectors',  label: 'Sectors' },
   { key: 'themes',   label: 'Themes' },
   { key: 'screener', label: 'Screener' },
-  { key: 'highs',    label: '📈 Highs/Lows' },
-  { key: 'earnings', label: '📅 Earnings' },
-  { key: 'sec',      label: '📄 SEC' },
-  { key: 'search',   label: '🔍 Search' },
+  { key: 'highs',    label: 'Highs / Lows' },
+  { key: 'earnings', label: 'Earnings' },
+  { key: 'sec',      label: 'SEC' },
+  { key: 'search',   label: 'Search' },
 ];
 
 // Filter stocks from stocksByTicker map by breadth criterion
@@ -429,44 +429,52 @@ export default function App() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* ── Header ── */}
-      <header className="border-b sticky top-0 z-20" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-        <div className="max-w-screen-2xl mx-auto px-3 sm:px-5 py-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <span className="text-base sm:text-lg font-bold tracking-tight font-mono whitespace-nowrap">
-              <span className="text-blue-500">▲ MARKET</span>
-              <span className="text-pink-500">PULSE</span>
-            </span>
-            <span className="hidden sm:block text-xs border-l pl-3 font-mono" style={{ color: 'var(--text-faint)', borderColor: 'var(--border)' }}>
-              US EQUITY · LIVE DATA
+      <header className="sticky top-0 z-20" style={{
+        background: 'rgba(8,12,20,0.92)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6" style={{ paddingTop: 10, paddingBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)', flexShrink: 0 }} />
+              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text)', whiteSpace: 'nowrap', fontFamily: "'Inter', sans-serif" }}>
+                Market<span style={{ color: 'var(--accent)' }}>Pulse</span>
+              </span>
+            </div>
+            <span className="hidden sm:block" style={{ fontSize: 10, color: 'var(--text-faint)', fontWeight: 600, letterSpacing: '0.1em', paddingLeft: 12, borderLeft: '1px solid var(--border)', fontFamily: 'monospace' }}>
+              US EQUITY · LIVE
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Clipboard button */}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               onClick={() => setShowClipboard(v => !v)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '5px 12px', borderRadius: 8,
-                border: `1px solid ${showClipboard ? '#60a5fa' : 'var(--border)'}`,
-                background: showClipboard ? 'rgba(96,165,250,0.12)' : 'var(--bg-panel)',
-                color: showClipboard ? '#60a5fa' : 'var(--text-muted)',
-                fontSize: 12, fontWeight: 600, fontFamily: 'monospace', cursor: 'pointer',
+                padding: '5px 12px', borderRadius: 7,
+                border: `1px solid ${showClipboard ? 'var(--border-hi)' : 'var(--border)'}`,
+                background: showClipboard ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                color: showClipboard ? 'var(--accent)' : 'var(--text-muted)',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer',
                 transition: 'all 0.15s',
               }}
             >
-              📋 Clipboard
+              Watchlist
               {totalClipped > 0 && (
-                <span style={{ background: '#60a5fa', color: '#000', borderRadius: 8, padding: '1px 5px', fontSize: 10, fontWeight: 700 }}>
+                <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 6, padding: '0 5px', fontSize: 10, fontWeight: 700 }}>
                   {totalClipped}
                 </span>
               )}
             </button>
-            {/* Theme toggle */}
             <button
               className="theme-btn"
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
             >
-              {theme === 'dark' ? '☀ Light' : '☾ Dark'}
+              {theme === 'dark' ? 'Light' : 'Dark'}
             </button>
             <RefreshBadge
               countdown={countdown}
@@ -476,34 +484,47 @@ export default function App() {
             />
           </div>
         </div>
+
         {/* Desktop tabs */}
-        <div className="hidden sm:flex border-t gap-1 px-4" style={{ borderColor: 'var(--border)' }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => handleTabChange(tab.key, setDesktopTab)}
-              style={{
-                padding: '8px 14px', fontSize: 12, fontWeight: desktopTab === tab.key ? 700 : 500,
-                color: desktopTab === tab.key ? '#3b82f6' : 'var(--text-muted)',
-                borderBottom: desktopTab === tab.key ? '2px solid #3b82f6' : '2px solid transparent',
-                background: 'transparent', cursor: 'pointer', transition: 'all 0.15s',
-                whiteSpace: 'nowrap',
-              }}>
-              {tab.label}
-            </button>
-          ))}
+        <div className="hidden sm:flex px-4" style={{ borderTop: '1px solid var(--border)', gap: 2 }}>
+          {TABS.map(tab => {
+            const active = desktopTab === tab.key;
+            return (
+              <button key={tab.key} onClick={() => handleTabChange(tab.key, setDesktopTab)}
+                style={{
+                  padding: '8px 14px', fontSize: 11, fontWeight: active ? 700 : 500,
+                  color: active ? 'var(--accent)' : 'var(--text-faint)',
+                  borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                  background: 'transparent', border: 'none', borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  whiteSpace: 'nowrap', letterSpacing: '0.01em',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)'; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-faint)'; }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
+
         {/* Mobile tabs */}
-        <div className="flex sm:hidden border-t" style={{ borderColor: 'var(--border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => handleTabChange(tab.key, setMobileTab)}
-              style={{
-                flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: mobileTab === tab.key ? 700 : 500,
-                background: 'transparent', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                color: mobileTab === tab.key ? '#3b82f6' : 'var(--text-muted)',
-                borderBottom: mobileTab === tab.key ? '2px solid #3b82f6' : '2px solid transparent',
-              }}>
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex sm:hidden" style={{ borderTop: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          {TABS.map(tab => {
+            const active = mobileTab === tab.key;
+            return (
+              <button key={tab.key} onClick={() => handleTabChange(tab.key, setMobileTab)}
+                style={{
+                  flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: active ? 700 : 500,
+                  background: 'transparent', border: 'none',
+                  borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  color: active ? 'var(--accent)' : 'var(--text-faint)',
+                }}>
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </header>
 

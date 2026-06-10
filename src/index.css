@@ -2,37 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
 :root {
-  --bg:         #0b0f18;   /* richer deep navy-black */
-  --bg-panel:   #111827;   /* cards: dark navy */
-  --bg-card:    #0f172a;   /* inner cards: slightly darker */
-  --border:     #1e293b;   /* subtle blue-gray border */
-  --border-hi:  #2d3d55;   /* highlighted border */
-  --text:       #e2e8f0;   /* slightly cooler white */
-  --text-muted: #94a3b8;   /* medium gray */
-  --text-faint: #475569;   /* dark gray */
-  --accent:     #3b82f6;
-  --accent-glow:rgba(59,130,246,0.18);
-  --green:      #34d399;
-  --red:        #f87171;
+  --bg:         #080c14;
+  --bg-panel:   #0d1424;
+  --bg-card:    #0a1020;
+  --bg-elevated:#111c2e;
+  --border:     rgba(255,255,255,0.06);
+  --border-hi:  rgba(99,160,255,0.25);
+  --text:       #dce8f8;
+  --text-muted: #7a96b8;
+  --text-faint: #3d5270;
+  --accent:     #4f8ef7;
+  --accent-dim: rgba(79,142,247,0.12);
+  --green:      #2dd4a0;
+  --red:        #f4617f;
+  --panel:      var(--bg-panel);
+  --hover:      rgba(79,142,247,0.07);
 }
 
 .light {
-  --bg:         #f1f5f9;
+  --bg:         #f0f4fb;
   --bg-panel:   #ffffff;
-  --bg-card:    #f8fafc;
-  --border:     #e2e8f0;
-  --border-hi:  #cbd5e1;
-  --text:       #0f172a;
-  --text-muted: #475569;
-  --text-faint: #94a3b8;
+  --bg-card:    #f7faff;
+  --bg-elevated:#eef3fc;
+  --border:     rgba(0,0,0,0.07);
+  --border-hi:  rgba(37,99,235,0.3);
+  --text:       #0d1a2e;
+  --text-muted: #4b6080;
+  --text-faint: #96aac4;
   --accent:     #2563eb;
-  --accent-glow:rgba(37,99,235,0.15);
+  --accent-dim: rgba(37,99,235,0.1);
   --green:      #059669;
   --red:        #dc2626;
+  --hover:      rgba(37,99,235,0.05);
 }
 
 body {
@@ -41,156 +48,148 @@ body {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background 0.2s, color 0.2s;
+  font-size: 13px;
+  line-height: 1.5;
+  transition: background 0.25s, color 0.25s;
 }
 
 #root { width: 100%; min-height: 100vh; }
 
+/* ── Panel ─────────────────────────────────────────── */
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.2);
-  border-radius: 14px;
-  padding: 18px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.2);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 .panel:hover {
   border-color: var(--border-hi);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(59,130,246,0.05);
 }
 
+/* ── Panel title ────────────────────────────────────── */
 .panel-title {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.18em;
   color: var(--text-faint);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
 
+/* ── Bars ───────────────────────────────────────────── */
 .bar-track {
-  height: 5px;
-  background: var(--bg);
+  height: 4px;
+  background: rgba(255,255,255,0.04);
   border-radius: 99px;
   overflow: hidden;
 }
-
 .bar-fill-pos {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #1d6fe8, #38bdf8);
-  transition: width 0.7s ease;
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
 }
-
 .bar-fill-neg {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #be185d, #f472b6);
-  transition: width 0.7s ease;
+  background: linear-gradient(90deg, #be185d, #fb7185);
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
 }
 
+/* ── Clickable row ──────────────────────────────────── */
 .clickable-row {
   cursor: pointer;
-  transition: background 0.15s;
-  border-radius: 6px;
-  padding: 6px 8px;
+  border-radius: 7px;
+  padding: 5px 8px;
   margin: 0 -8px;
+  transition: background 0.12s;
 }
-
 .clickable-row:hover {
-  background: rgba(59, 130, 246, 0.06);
+  background: var(--hover);
 }
 
-/* Theme toggle button */
+/* ── Buttons ────────────────────────────────────────── */
 .theme-btn {
   font-size: 11px;
-  padding: 3px 10px;
-  border-radius: 20px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 7px;
   border: 1px solid var(--border);
-  background: var(--bg-panel);
+  background: var(--bg-elevated);
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
 }
-
+.theme-btn:hover {
+  border-color: var(--border-hi);
+  color: var(--text);
+}
 .theme-btn.active {
-  background: #3b82f6;
-  color: #ffffff;
-  border-color: #3b82f6;
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
 }
 
-/* Timeframe button */
 .tf-btn {
   font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 20px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-faint);
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
 }
-
+.tf-btn:hover {
+  color: var(--text-muted);
+  border-color: rgba(255,255,255,0.12);
+}
 .tf-btn.active {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #3b82f6;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(79,142,247,0.35);
 }
 
-/* Ticker animation */
+/* ── Ticker scrollbar ───────────────────────────────── */
 @keyframes ticker-scroll {
-  0% { transform: translateX(0); }
+  0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
-
 .ticker-track {
   display: flex;
   animation: ticker-scroll 40s linear infinite;
   width: max-content;
 }
+.ticker-track:hover { animation-play-state: paused; }
 
-.ticker-track:hover {
-  animation-play-state: paused;
-}
-
-/* Pulse dot */
+/* ── Pulse dot ──────────────────────────────────────── */
 @keyframes pulse-glow {
-  0%, 100% { opacity: 1; box-shadow: 0 0 6px #22d3ee; }
-  50% { opacity: 0.4; box-shadow: none; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 5px #4f8ef7; }
+  50%       { opacity: 0.35; box-shadow: none; }
 }
+.pulse-dot { animation: pulse-glow 2.2s ease-in-out infinite; }
 
-.pulse-dot {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
+/* ── Scrollbar ──────────────────────────────────────── */
+::-webkit-scrollbar        { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.08); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* ── Number flash animations ────────────────────────── */
+@keyframes flash-green { 0% { color: #2dd4a0; } 100% { color: inherit; } }
+@keyframes flash-red   { 0% { color: #f4617f; } 100% { color: inherit; } }
 
-/* Number change flash */
-@keyframes flash-green {
-  0% { color: #34d399; }
-  100% { color: inherit; }
-}
-@keyframes flash-red {
-  0% { color: #f87171; }
-  100% { color: inherit; }
-}
-
-/* Loading skeleton pulse for Expected Move badge */
+/* ── Misc ───────────────────────────────────────────── */
 @keyframes pulse-load {
-  0%, 100% { opacity: 0.3; }
-  50%       { opacity: 0.7; }
-}
-
-/* Subtle card glow on hover */
-@keyframes border-glow {
-  0%   { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
-  50%  { box-shadow: 0 0 12px 2px rgba(59,130,246,0.15); }
-  100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 0.6; }
 }
 
 @keyframes spin {
@@ -198,10 +197,5 @@ body {
   to   { transform: rotate(360deg); }
 }
 
-/* Table row highlight */
-.data-row {
-  transition: background 0.12s;
-}
-.data-row:hover {
-  background: rgba(59,130,246,0.04) !important;
-}
+.data-row { transition: background 0.1s; }
+.data-row:hover { background: var(--hover) !important; }

@@ -8,8 +8,8 @@ const TIMEFRAMES = [
   { key: 'ytd', label: 'YTD' },
 ];
 
-const POS_COLOR = '#3b82f6';
-const NEG_COLOR = '#ec4899';
+const POS_COLOR = '#4f8ef7';
+const NEG_COLOR = '#f4617f';
 
 function ThemeColumn({ themes, defaultTf, onThemeClick }) {
   const [tf, setTf] = useState(defaultTf);
