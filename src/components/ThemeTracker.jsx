@@ -80,25 +80,26 @@ function ThemeColumn({ themes, defaultTf, onThemeClick }) {
             >
               {/* Name */}
               <span style={{
-                flex: '0 0 110px',
+                flex: 1,
                 fontSize: 11,
                 fontWeight: 500,
                 color: 'var(--text)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                minWidth: 0,
               }}>
                 {t.theme}
               </span>
 
               {/* Bar */}
               <div style={{
-                flex: 1,
-                minWidth: 30,
+                width: 68,
                 height: 5,
                 background: 'var(--bg)',
                 borderRadius: 99,
                 overflow: 'hidden',
+                flexShrink: 0,
               }}>
                 <div style={{
                   height: '100%',
