@@ -6,6 +6,7 @@ import SectorTable from './components/SectorTable';
 import ThemeTracker from './components/ThemeTracker';
 import LeadersView from './components/LeadersView';
 import IndustryGroups from './components/IndustryGroups';
+import ThemeDashboard from './components/ThemeDashboard';
 import ArielDashboard from './components/ArielDashboard';
 import StockSearch from './components/StockSearch';
 import Screener from './components/Screener';
@@ -572,12 +573,17 @@ export default function App() {
               {sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
             </div>
             <div className="xl:col-span-2">
-              {hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
+              {hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} compact />}
             </div>
           </div>
         )}
         {desktopTab === 'themes' && hotThemeData && (
-          <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />
+          <ThemeDashboard
+            hotThemes={HOT_THEMES}
+            hotThemeData={hotThemeData}
+            stocksByTicker={stocksByTicker || {}}
+            onThemeClick={handleHotThemeClick}
+          />
         )}
         {desktopTab === 'screener' && (
           <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />
@@ -618,7 +624,14 @@ export default function App() {
         )}
         {mobileTab === 'groups'  && industryGroupData && <IndustryGroups groups={industryGroupData} onGroupClick={handleGroupClick} />}
         {mobileTab === 'sectors' && sectorData && <SectorTable sectors={sectorData} onSectorClick={handleDrillDown} />}
-        {mobileTab === 'themes'  && hotThemeData && <ThemeTracker themes={hotThemeData} onThemeClick={handleHotThemeClick} theme={theme} />}
+        {mobileTab === 'themes'  && hotThemeData && (
+          <ThemeDashboard
+            hotThemes={HOT_THEMES}
+            hotThemeData={hotThemeData}
+            stocksByTicker={stocksByTicker || {}}
+            onThemeClick={handleHotThemeClick}
+          />
+        )}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}

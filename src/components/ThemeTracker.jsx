@@ -1,130 +1,109 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 
-const COLS = [
+const TIMEFRAMES = [
   { key: 'd1',  label: 'Today' },
-  { key: 'w1',  label: '1W'    },
-  { key: 'm1',  label: '1M'    },
-  { key: 'm3',  label: '3M'    },
-  { key: 'm6',  label: '6M'    },
-  { key: 'ytd', label: 'YTD'   },
+  { key: 'w1',  label: '1W'   },
+  { key: 'm1',  label: '1M'   },
+  { key: 'm3',  label: '3M'   },
+  { key: 'ytd', label: 'YTD'  },
 ];
 
-function PerfCell({ val }) {
-  if (val == null) {
-    return (
-      <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: 'var(--text-faint)' }}>
-        —
-      </td>
-    );
-  }
-  const color = val > 0 ? '#22c55e' : val < 0 ? '#f87171' : 'var(--text-muted)';
+const POS_COLOR = '#3b82f6';
+const NEG_COLOR = '#f87171';
+
+function PerfBar({ val, maxAbs }) {
+  const isPos = val >= 0;
+  const barW = maxAbs > 0 ? Math.round((Math.abs(val) / maxAbs) * 100) : 0;
+  const barColor = isPos ? POS_COLOR : NEG_COLOR;
   return (
-    <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color, whiteSpace: 'nowrap' }}>
-      {val > 0 ? '+' : ''}{val.toFixed(2)}%
-    </td>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, height: 5, background: 'var(--bg)', borderRadius: 99, overflow: 'hidden', minWidth: 20 }}>
+        <div style={{
+          height: '100%',
+          width: `${barW}%`,
+          borderRadius: 99,
+          background: barColor,
+          transition: 'width 0.4s ease',
+        }} />
+      </div>
+      <span style={{
+        width: 46,
+        textAlign: 'right',
+        fontSize: 10,
+        fontFamily: 'monospace',
+        fontWeight: 700,
+        color: barColor,
+        flexShrink: 0,
+      }}>
+        {isPos ? '+' : ''}{val.toFixed(1)}%
+      </span>
+    </div>
   );
 }
 
-export default function ThemeTracker({ themes, onThemeClick }) {
-  const [sortKey, setSortKey] = useState('d1');
-  const [sortDir, setSortDir] = useState(-1); // -1 desc, 1 asc
-
-  function handleColClick(key) {
-    if (key === sortKey) {
-      setSortDir(d => -d);
-    } else {
-      setSortKey(key);
-      setSortDir(-1);
-    }
-  }
-
-  const sorted = useMemo(() => {
-    return [...themes].sort((a, b) => {
-      const av = a[sortKey] ?? -Infinity;
-      const bv = b[sortKey] ?? -Infinity;
-      return sortDir * (bv - av);
-    });
-  }, [themes, sortKey, sortDir]);
+function ThemePanel({ themes, onThemeClick, defaultTf }) {
+  const [sortTf, setSortTf] = useState(defaultTf);
+  const sorted = [...themes].sort((a, b) => (b[sortTf] || 0) - (a[sortTf] || 0));
+  const maxAbs = Math.max(...themes.map(t => Math.abs(t[sortTf] || 0)), 0.1);
 
   return (
-    <div className="panel" style={{ overflowX: 'auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-faint)' }}>
-          Theme Tracker
-        </span>
-        <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>
-          {sorted.length} themes
-        </span>
+    <div className="panel" style={{ minWidth: 0 }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+        {TIMEFRAMES.map(tf => (
+          <button
+            key={tf.key}
+            onClick={() => setSortTf(tf.key)}
+            style={{
+              fontSize: 9,
+              padding: '2px 7px',
+              borderRadius: 20,
+              border: `1px solid ${sortTf === tf.key ? POS_COLOR : 'var(--border)'}`,
+              background: sortTf === tf.key ? POS_COLOR + '22' : 'transparent',
+              color: sortTf === tf.key ? POS_COLOR : 'var(--text-faint)',
+              cursor: 'pointer',
+              fontWeight: sortTf === tf.key ? 700 : 400,
+              transition: 'all 0.15s',
+            }}
+          >
+            {tf.label}
+          </button>
+        ))}
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 560 }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            <th style={{ textAlign: 'left', padding: '0 10px 8px 0', fontSize: 9, color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', userSelect: 'none' }}>
-              Theme
-            </th>
-            {COLS.map(col => {
-              const active = sortKey === col.key;
-              return (
-                <th
-                  key={col.key}
-                  onClick={() => handleColClick(col.key)}
-                  style={{
-                    textAlign: 'right',
-                    padding: '0 10px 8px',
-                    fontSize: 9,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    cursor: 'pointer',
-                    color: active ? 'var(--accent)' : 'var(--text-faint)',
-                    userSelect: 'none',
-                    whiteSpace: 'nowrap',
-                    transition: 'color 0.15s',
-                  }}
-                >
-                  {col.label}
-                  {active && (
-                    <span style={{ marginLeft: 3, fontSize: 8 }}>
-                      {sortDir < 0 ? '▼' : '▲'}
-                    </span>
-                  )}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((t, idx) => (
-            <tr
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {sorted.map((t, idx) => {
+          const val = t[sortTf] || 0;
+          return (
+            <div
               key={t.theme}
               onClick={() => onThemeClick(t.theme)}
-              style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.12s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.05)'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 8px', margin: '0 -6px', borderRadius: 6,
+                cursor: 'pointer', transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.07)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <td style={{ padding: '9px 10px 9px 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace', width: 16, flexShrink: 0 }}>
-                    {idx + 1}
-                  </span>
-                  <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
-                    {t.theme}
-                  </span>
-                </div>
-              </td>
-              {COLS.map(col => (
-                <PerfCell key={col.key} val={t[col.key] ?? null} />
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace', width: 14, flexShrink: 0, textAlign: 'right' }}>{idx + 1}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', width: 110, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.theme}</span>
+              <PerfBar val={val} maxAbs={maxAbs} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-      <p style={{ textAlign: 'center', fontSize: 9, color: 'var(--text-faint)', marginTop: 12, fontFamily: 'monospace' }}>
-        Click column header to sort · click row to see leaders
-      </p>
+export default function ThemeTracker({ themes, onThemeClick, compact }) {
+  if (compact) {
+    return <ThemePanel themes={themes} onThemeClick={onThemeClick} defaultTf="d1" />;
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
+      <ThemePanel themes={themes} onThemeClick={onThemeClick} defaultTf="d1" />
+      <ThemePanel themes={themes} onThemeClick={onThemeClick} defaultTf="m1" />
     </div>
   );
 }
