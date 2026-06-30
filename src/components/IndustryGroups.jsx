@@ -28,24 +28,16 @@ const SECTOR_SHORT = {
   'Utilities':              'Utilities',
 };
 
-function RankBadge({ rank, total }) {
-  const pct = rank / total;
-  const color =
-    pct <= 0.15 ? '#22c55e' :
-    pct <= 0.35 ? '#86efac' :
-    pct <= 0.65 ? '#94a3b8' :
-    pct <= 0.85 ? '#fb923c' : '#f87171';
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      minWidth: 26, height: 20, borderRadius: 4, padding: '0 4px',
-      background: color + '18', border: `1px solid ${color}44`,
-      color, fontSize: 10, fontWeight: 700, fontFamily: 'monospace', flexShrink: 0,
-    }}>
-      {rank}
-    </span>
-  );
-}
+const TIMEFRAME_COLS = [
+  { key: 'change', label: 'Today' },
+  { key: 'w1',     label: '1W'    },
+  { key: 'm1',     label: '1M'    },
+  { key: 'm3',     label: '3M'    },
+  { key: 'm6',     label: '6M'    },
+  { key: 'ytd',    label: 'YTD'   },
+];
+
+const SECTORS_LIST = Object.keys(SECTOR_COLORS);
 
 function RSBadge({ rs }) {
   const color =
@@ -77,28 +69,45 @@ function SectorTag({ sector }) {
   );
 }
 
-const SORT_OPTIONS = [
-  { key: 'rank',   label: 'RS Rank' },
-  { key: 'change', label: 'Today' },
-];
-
-const SECTORS_LIST = Object.keys(SECTOR_COLORS);
+function PerfCell({ val }) {
+  if (val == null) {
+    return (
+      <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: 'var(--text-faint)' }}>
+        —
+      </td>
+    );
+  }
+  const color = val > 0 ? '#22c55e' : val < 0 ? '#f87171' : 'var(--text-muted)';
+  return (
+    <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color, whiteSpace: 'nowrap' }}>
+      {val > 0 ? '+' : ''}{val.toFixed(1)}%
+    </td>
+  );
+}
 
 export default function IndustryGroups({ groups, onGroupClick }) {
-  const [sortKey, setSortKey]         = useState('rank');
+  const [sortKey, setSortKey]           = useState('change');
+  const [sortDir, setSortDir]           = useState(-1); // -1 desc
   const [filterSector, setFilterSector] = useState('All');
 
   const total = groups.length;
 
+  function handleColClick(key) {
+    if (key === sortKey) setSortDir(d => -d);
+    else { setSortKey(key); setSortDir(-1); }
+  }
+
   const sorted = useMemo(() => {
     let list = [...groups];
     if (filterSector !== 'All') list = list.filter(g => g.sector === filterSector);
-    if (sortKey === 'change') list.sort((a, b) => b.change - a.change);
-    // 'rank' keeps the RS-ranked order from the data
+    list.sort((a, b) => {
+      const av = a[sortKey] ?? -Infinity;
+      const bv = b[sortKey] ?? -Infinity;
+      return sortDir * (bv - av);
+    });
     return list;
-  }, [groups, sortKey, filterSector]);
+  }, [groups, sortKey, sortDir, filterSector]);
 
-  // Count by sector for the filter pills
   const sectorCounts = useMemo(() => {
     const counts = {};
     groups.forEach(g => { counts[g.sector] = (counts[g.sector] || 0) + 1; });
@@ -107,7 +116,7 @@ export default function IndustryGroups({ groups, onGroupClick }) {
 
   return (
     <div className="panel">
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-faint)' }}>
@@ -117,21 +126,9 @@ export default function IndustryGroups({ groups, onGroupClick }) {
             {sorted.length}/{total}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-          <span style={{ fontSize: 9, color: 'var(--text-faint)', marginRight: 2 }}>SORT:</span>
-          {SORT_OPTIONS.map(opt => (
-            <button key={opt.key} onClick={() => setSortKey(opt.key)} style={{
-              fontSize: 9, padding: '2px 8px', borderRadius: 20, cursor: 'pointer',
-              border: `1px solid ${sortKey === opt.key ? '#3b82f6' : 'var(--border)'}`,
-              background: sortKey === opt.key ? '#3b82f620' : 'transparent',
-              color: sortKey === opt.key ? '#3b82f6' : 'var(--text-faint)',
-              fontWeight: sortKey === opt.key ? 700 : 400, transition: 'all 0.15s',
-            }}>{opt.label}</button>
-          ))}
-        </div>
       </div>
 
-      {/* ── Sector filter pills ── */}
+      {/* Sector filter pills */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
         {['All', ...SECTORS_LIST.filter(s => sectorCounts[s])].map(s => {
           const active = filterSector === s;
@@ -152,30 +149,57 @@ export default function IndustryGroups({ groups, onGroupClick }) {
         })}
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 620 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              {[
-                { label: '#',       w: 32,  align: 'left'   },
-                { label: 'Group',   w: null, align: 'left'  },
-                { label: 'RS',      w: 44,  align: 'center' },
-                { label: 'Today',   w: 60,  align: 'right'  },
-                { label: 'Leaders', w: null, align: 'left', cls: 'hidden sm:table-cell' },
-              ].map(col => (
-                <th key={col.label} className={col.cls || ''} style={{
-                  textAlign: col.align, paddingBottom: 8, paddingLeft: 6, paddingRight: 6,
-                  fontSize: 9, color: 'var(--text-faint)', fontWeight: 700,
-                  textTransform: 'uppercase', letterSpacing: '0.1em',
-                  width: col.w || undefined,
-                }}>{col.label}</th>
-              ))}
+              {/* Group col */}
+              <th style={{ textAlign: 'left', paddingBottom: 8, paddingLeft: 0, paddingRight: 8, fontSize: 9, color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', userSelect: 'none' }}>
+                Group
+              </th>
+              {/* RS */}
+              <th style={{ textAlign: 'center', padding: '0 8px 8px', fontSize: 9, color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                RS
+              </th>
+              {/* Timeframe columns */}
+              {TIMEFRAME_COLS.map(col => {
+                const active = sortKey === col.key;
+                return (
+                  <th
+                    key={col.key}
+                    onClick={() => handleColClick(col.key)}
+                    style={{
+                      textAlign: 'right',
+                      padding: '0 8px 8px',
+                      fontSize: 9,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.1em',
+                      cursor: 'pointer',
+                      color: active ? 'var(--accent)' : 'var(--text-faint)',
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
+                      transition: 'color 0.15s',
+                    }}
+                  >
+                    {col.label}
+                    {active && (
+                      <span style={{ marginLeft: 3, fontSize: 8 }}>
+                        {sortDir < 0 ? '▼' : '▲'}
+                      </span>
+                    )}
+                  </th>
+                );
+              })}
+              {/* Leaders col (desktop) */}
+              <th className="hidden sm:table-cell" style={{ textAlign: 'left', padding: '0 0 8px 8px', fontSize: 9, color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Leaders
+              </th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((group) => {
-              const changeColor = group.change > 0 ? '#22c55e' : group.change < 0 ? '#f87171' : 'var(--text-muted)';
+            {sorted.map(group => {
               return (
                 <tr
                   key={group.name}
@@ -184,13 +208,8 @@ export default function IndustryGroups({ groups, onGroupClick }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.05)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  {/* Rank */}
-                  <td style={{ padding: '9px 6px' }}>
-                    <RankBadge rank={group.rank} total={total} />
-                  </td>
-
                   {/* Name + Sector tag */}
-                  <td style={{ padding: '9px 6px' }}>
+                  <td style={{ padding: '9px 8px 9px 0' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 12, whiteSpace: 'nowrap' }}>
                         {group.name}
@@ -199,18 +218,18 @@ export default function IndustryGroups({ groups, onGroupClick }) {
                     </div>
                   </td>
 
-                  {/* RS avg */}
-                  <td style={{ padding: '9px 6px', textAlign: 'center' }}>
+                  {/* RS */}
+                  <td style={{ padding: '9px 8px', textAlign: 'center' }}>
                     <RSBadge rs={group.avgRS} />
                   </td>
 
-                  {/* Today % */}
-                  <td style={{ padding: '9px 6px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: changeColor, fontSize: 12, whiteSpace: 'nowrap' }}>
-                    {group.change > 0 ? '+' : ''}{group.change.toFixed(1)}%
-                  </td>
+                  {/* Timeframe cells */}
+                  {TIMEFRAME_COLS.map(col => (
+                    <PerfCell key={col.key} val={group[col.key] ?? null} />
+                  ))}
 
-                  {/* Top tickers (desktop only) */}
-                  <td className="hidden sm:table-cell" style={{ padding: '9px 6px' }}>
+                  {/* Leaders (desktop only) */}
+                  <td className="hidden sm:table-cell" style={{ padding: '9px 0 9px 8px' }}>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {group.leaders.slice(0, 4).map(s => (
                         <span key={s.ticker} style={{
@@ -231,7 +250,7 @@ export default function IndustryGroups({ groups, onGroupClick }) {
       </div>
 
       <p style={{ textAlign: 'center', fontSize: 9, color: 'var(--text-faint)', marginTop: 12, fontFamily: 'monospace' }}>
-        Ranked by avg RS rating · click any group to see leaders
+        Click column to sort · 1W/1M/3M/6M/YTD via proxy ETF · click row to see leaders
       </p>
     </div>
   );

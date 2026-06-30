@@ -213,13 +213,14 @@ function calcOverallStages(stocks) {
 function calcThemePerf(theme, etfSym, historyMap) {
   const hist = historyMap[etfSym];
   if (!hist || !hist.closes || hist.closes.length < 5) {
-    return { theme, d1: 0, w1: 0, m1: 0, m3: 0, ytd: 0 };
+    return { theme, d1: 0, w1: 0, m1: 0, m3: 0, m6: 0, ytd: 0 };
   }
   const closes = hist.closes.filter(Boolean);
   const last = closes[closes.length - 1];
   const w1price = closes[Math.max(0, closes.length - 6)];
   const m1price = closes[Math.max(0, closes.length - 22)];
-  const m3price = closes[Math.max(0, closes.length - 66)]; // ~66 trading days = 3 months
+  const m3price = closes[Math.max(0, closes.length - 66)];
+  const m6price = closes[Math.max(0, closes.length - 126)];
   // YTD: find first close of the year
   const timestamps = hist.timestamps || [];
   const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
@@ -227,7 +228,7 @@ function calcThemePerf(theme, etfSym, historyMap) {
   const ytdPrice = ytdIdx >= 0 ? closes[ytdIdx] : closes[0];
 
   const pct = (from, to) => from ? Math.round(((to - from) / from) * 1000) / 10 : 0;
-  return { theme, d1: 0, w1: pct(w1price, last), m1: pct(m1price, last), m3: pct(m3price, last), ytd: pct(ytdPrice, last) };
+  return { theme, d1: 0, w1: pct(w1price, last), m1: pct(m1price, last), m3: pct(m3price, last), m6: pct(m6price, last), ytd: pct(ytdPrice, last) };
 }
 
 // ── Stage history (last 20 trading days from all stocks) ──────────────
@@ -283,25 +284,54 @@ function calcHotThemeData(hotThemes, stocksByTicker, historyMap) {
     const w1  = pct(closes[Math.max(0, closes.length - 6)],  last);
     const m1  = pct(closes[Math.max(0, closes.length - 22)], last);
     const m3  = pct(closes[Math.max(0, closes.length - 66)], last);
+    const m6  = pct(closes[Math.max(0, closes.length - 126)], last);
     const timestamps = hist.timestamps || [];
     const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
     const ytdIdx = timestamps.findIndex(t => t >= yearStart);
     const ytdPrice = ytdIdx >= 0 ? closes[ytdIdx] : closes[0];
     const ytd = pct(ytdPrice, last);
 
-    return { theme: theme.name, d1, w1, m1, m3, ytd };
+    return { theme: theme.name, d1, w1, m1, m3, m6, ytd };
   });
 }
 
 // ── Industry Group Rankings ────────────────────────────────────────────
-export function calcIndustryGroupData(industryGroups, stocksByTicker) {
+export function calcIndustryGroupData(industryGroups, stocksByTicker, historyMap = {}, hotThemes = []) {
+  // Build group → proxy ETF mapping from hot themes
+  const groupToEtf = {};
+  hotThemes.forEach(theme => {
+    (theme.groups || []).forEach(groupName => {
+      if (!groupToEtf[groupName]) groupToEtf[groupName] = theme.etf;
+    });
+  });
+
+  const pct = (from, to) => from ? Math.round(((to - from) / from) * 1000) / 10 : 0;
+
   const groups = industryGroups.map(group => {
     const stocks = group.tickers.map(t => stocksByTicker[t]).filter(Boolean);
     if (stocks.length < 2) return null;
     const avgRS = Math.round(stocks.reduce((s, st) => s + st.rs, 0) / stocks.length);
     const avgChange = Math.round(stocks.reduce((s, st) => s + st.change, 0) / stocks.length * 10) / 10;
     const leaders = [...stocks].sort((a, b) => b.rs - a.rs).slice(0, 5);
-    return { name: group.name, sector: group.sector, avgRS, change: avgChange, leaders, stockCount: stocks.length };
+
+    // Multi-timeframe performance via proxy ETF history
+    const etfSym = groupToEtf[group.name];
+    const hist = etfSym ? historyMap[etfSym] : null;
+    let w1 = null, m1 = null, m3 = null, m6 = null, ytd = null;
+    if (hist && hist.closes && hist.closes.length >= 5) {
+      const closes = hist.closes.filter(Boolean);
+      const last = closes[closes.length - 1];
+      w1 = pct(closes[Math.max(0, closes.length - 6)],   last);
+      m1 = pct(closes[Math.max(0, closes.length - 22)],  last);
+      m3 = pct(closes[Math.max(0, closes.length - 66)],  last);
+      m6 = pct(closes[Math.max(0, closes.length - 126)], last);
+      const timestamps = hist.timestamps || [];
+      const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
+      const ytdIdx = timestamps.findIndex(t => t >= yearStart);
+      ytd = pct(ytdIdx >= 0 ? closes[ytdIdx] : closes[0], last);
+    }
+
+    return { name: group.name, sector: group.sector, avgRS, change: avgChange, leaders, stockCount: stocks.length, w1, m1, m3, m6, ytd };
   }).filter(Boolean);
 
   // Rank by avgRS descending
@@ -358,7 +388,7 @@ export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeE
     return perf;
   });
 
-  const industryGroupData = calcIndustryGroupData(industryGroups, stocksByTicker);
+  const industryGroupData = calcIndustryGroupData(industryGroups, stocksByTicker, history, hotThemes);
   const hotThemeData = calcHotThemeData(hotThemes, stocksByTicker, history);
 
   return { breadth, sectorData, stageDist, stageHistory, themeData, industryGroupData, stocksByTicker, hotThemeData };
