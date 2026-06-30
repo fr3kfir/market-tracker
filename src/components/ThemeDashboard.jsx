@@ -146,22 +146,18 @@ export default function ThemeDashboard({ hotThemes, hotThemeData, stocksByTicker
         </span>
       </div>
 
-      {/* Theme card grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
-        gap: 8,
-        alignItems: 'start',
-      }}>
+      {/* Theme card masonry — CSS columns pack cards tightly with no vertical gaps */}
+      <div style={{ columns: '260px', columnGap: 6 }}>
         {sortedThemes.map(theme => (
-          <ThemeCard
-            key={theme.name}
-            theme={theme}
-            stocks={themeStocks[theme.name] || []}
-            themeAgg={aggMap[theme.name]}
-            selectedTf={selectedTf}
-            onThemeClick={onThemeClick}
-          />
+          <div key={theme.name} style={{ breakInside: 'avoid', marginBottom: 6, display: 'inline-block', width: '100%' }}>
+            <ThemeCard
+              theme={theme}
+              stocks={themeStocks[theme.name] || []}
+              themeAgg={aggMap[theme.name]}
+              selectedTf={selectedTf}
+              onThemeClick={onThemeClick}
+            />
+          </div>
         ))}
       </div>
     </div>
