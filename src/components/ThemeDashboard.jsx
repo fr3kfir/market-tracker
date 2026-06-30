@@ -16,12 +16,12 @@ function StockBar({ ticker, val, maxAbs }) {
   const barW = maxAbs > 0 ? Math.round((Math.abs(val) / maxAbs) * 100) : 0;
   const barColor = isPos ? POS_COLOR : NEG_COLOR;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '1.5px 0' }}>
       <span style={{
         fontSize: 10, fontFamily: 'monospace', fontWeight: 700,
-        color: 'var(--text)', width: 52, flexShrink: 0,
+        color: 'var(--text)', width: 48, flexShrink: 0,
       }}>{ticker}</span>
-      <div style={{ flex: 1, height: 5, background: 'var(--bg)', borderRadius: 99, overflow: 'hidden', minWidth: 20 }}>
+      <div style={{ flex: 1, height: 4, background: 'var(--bg)', borderRadius: 99, overflow: 'hidden', minWidth: 20 }}>
         <div style={{
           height: '100%', width: `${barW}%`,
           background: barColor, borderRadius: 99,
@@ -30,7 +30,7 @@ function StockBar({ ticker, val, maxAbs }) {
       </div>
       <span style={{
         fontSize: 10, fontFamily: 'monospace', fontWeight: 700,
-        color: barColor, width: 50, textAlign: 'right', flexShrink: 0,
+        color: barColor, width: 48, textAlign: 'right', flexShrink: 0,
       }}>
         {isPos ? '+' : ''}{val.toFixed(2)}%
       </span>
@@ -50,7 +50,7 @@ function ThemeCard({ theme, stocks, themeAgg, selectedTf, onThemeClick }) {
   return (
     <div
       className="panel"
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: 'pointer', padding: 10 }}
       onClick={() => onThemeClick(theme.name)}
       onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.04)'}
       onMouseLeave={e => e.currentTarget.style.background = ''}
@@ -58,14 +58,14 @@ function ThemeCard({ theme, stocks, themeAgg, selectedTf, onThemeClick }) {
       {/* Card header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 8, paddingBottom: 7,
+        marginBottom: 5, paddingBottom: 5,
         borderBottom: '1px solid var(--border)',
       }}>
         <span style={{
           fontSize: 11, fontWeight: 700, color: 'var(--text)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '72%',
         }}>{theme.name}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
           {!isToday && (
             <span style={{
               fontSize: 10, fontFamily: 'monospace', fontWeight: 700,
@@ -80,7 +80,7 @@ function ThemeCard({ theme, stocks, themeAgg, selectedTf, onThemeClick }) {
         </div>
       </div>
 
-      {/* Stock bars (always Today per-stock) */}
+      {/* Stock bars */}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {sortedStocks.map(s => (
           <StockBar key={s.ticker} ticker={s.ticker} val={s.change} maxAbs={maxAbs} />
@@ -121,16 +121,16 @@ export default function ThemeDashboard({ hotThemes, hotThemeData, stocksByTicker
   return (
     <div>
       {/* Timeframe selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
-        <span style={{ fontSize: 9, color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', marginRight: 4 }}>
-          SORT THEMES:
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10 }}>
+        <span style={{ fontSize: 9, color: 'var(--text-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', marginRight: 2 }}>
+          SORT:
         </span>
         {TIMEFRAMES.map(tf => (
           <button
             key={tf.key}
             onClick={() => setSelectedTf(tf.key)}
             style={{
-              fontSize: 9, padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
+              fontSize: 9, padding: '2px 8px', borderRadius: 20, cursor: 'pointer',
               border: `1px solid ${selectedTf === tf.key ? POS_COLOR : 'var(--border)'}`,
               background: selectedTf === tf.key ? POS_COLOR + '22' : 'transparent',
               color: selectedTf === tf.key ? POS_COLOR : 'var(--text-faint)',
@@ -141,16 +141,16 @@ export default function ThemeDashboard({ hotThemes, hotThemeData, stocksByTicker
             {tf.label}
           </button>
         ))}
-        <span style={{ marginLeft: 8, fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>
-          · stocks sorted by today · click card to drill in
+        <span style={{ marginLeft: 6, fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>
+          · click any card to drill in
         </span>
       </div>
 
       {/* Theme card grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-        gap: 12,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
+        gap: 8,
         alignItems: 'start',
       }}>
         {sortedThemes.map(theme => (
