@@ -8,6 +8,8 @@ import LeadersView from './components/LeadersView';
 import IndustryGroups from './components/IndustryGroups';
 import ThemeDashboard from './components/ThemeDashboard';
 import ArielDashboard from './components/ArielDashboard';
+import LeadersLaggards from './components/LeadersLaggards';
+import MarketMonitor from './components/MarketMonitor';
 import StockSearch from './components/StockSearch';
 import Screener from './components/Screener';
 import ArielBreadthTable from './components/ArielBreadthTable';
@@ -159,8 +161,10 @@ function ArielGuide() {
 
 const TABS = [
   { key: 'routine',  label: 'Routine' },
+  { key: 'monitor',  label: 'Monitor' },
   { key: 'breadth',  label: 'Breadth' },
   { key: 'ariel',    label: 'Ariel' },
+  { key: 'rs',       label: 'Leaders / Laggards' },
   { key: 'stage',    label: 'Stages' },
   { key: 'groups',   label: 'Groups' },
   { key: 'sectors',  label: 'Sectors' },
@@ -551,6 +555,12 @@ export default function App() {
             <ArielGuide />
           </div>
         )}
+        {desktopTab === 'monitor' && breadth && (
+          <MarketMonitor breadth={breadth} stocksByTicker={stocksByTicker || {}} hotThemeData={hotThemeData || []} onThemeClick={handleHotThemeClick} />
+        )}
+        {desktopTab === 'rs' && (
+          <LeadersLaggards stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} onClip={onClip} />
+        )}
         {desktopTab === 'breadth' && (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
             <div className="lg:col-span-2">
@@ -618,6 +628,8 @@ export default function App() {
       <div className="sm:hidden px-3 py-3">
         {mobileTab === 'routine'  && <ArielDashboard breadth={breadth} stageDist={stageDist} industryGroupData={industryGroupData} stocksByTicker={stocksByTicker || {}} onGroupClick={handleGroupClick} />}
         {mobileTab === 'ariel'   && <ArielBreadthTable rows={arielRows} breadth={breadth} loading={arielLoading} />}
+        {mobileTab === 'monitor'  && breadth && <MarketMonitor breadth={breadth} stocksByTicker={stocksByTicker || {}} hotThemeData={hotThemeData || []} onThemeClick={handleHotThemeClick} />}
+        {mobileTab === 'rs'       && <LeadersLaggards stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} onClip={onClip} />}
         {mobileTab === 'breadth'  && breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
         {mobileTab === 'stage'   && stageDist && stageHistory && (
           <StageOverview distribution={stageDist} history={stageHistory} theme={theme} />

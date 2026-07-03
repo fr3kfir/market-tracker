@@ -374,5 +374,26 @@ export const ALL_THEME_SYMBOLS = [...new Set([
 
 export const ALL_ETF_SYMBOLS = Object.values(THEME_ETFS);
 
+// ── Deepvue-style Market Monitor ──────────────────────────────────────────
+export const SECTOR_ETFS = [
+  { sym: 'XLK',  name: 'Technology' },
+  { sym: 'XLF',  name: 'Financials' },
+  { sym: 'XLV',  name: 'HealthCare' },
+  { sym: 'XLE',  name: 'Energy' },
+  { sym: 'XLI',  name: 'Industrials' },
+  { sym: 'XLY',  name: 'Cons. Discretionary' },
+  { sym: 'XLP',  name: 'Cons. Staples' },
+  { sym: 'XLU',  name: 'Utilities' },
+  { sym: 'XLB',  name: 'Materials' },
+  { sym: 'XLRE', name: 'Real Estate' },
+  { sym: 'XLC',  name: 'Communication' },
+  { sym: 'SPY',  name: 'S&P 500' },
+];
+
+export const HEAVYWEIGHTS = ['META', 'GOOGL', 'AAPL', 'AMZN', 'MAGS', 'MSFT', 'TSLA', 'NVDA'];
+
+// ETF symbols added to the live quote fetch just for the Monitor tab
+export const MONITOR_ETF_SYMBOLS = [...SECTOR_ETFS.map(s => s.sym), 'MAGS'];
+
 export const SECTORS = Object.keys(SECTOR_STOCKS);
 export const THEMES = Object.keys(THEME_STOCKS);

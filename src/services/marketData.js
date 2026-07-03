@@ -1,6 +1,8 @@
 // Fetches real stock data from Yahoo Finance via local proxy / Netlify Function
 // All /api/* calls go to server.js locally, and netlify/functions/quotes.js in production
 
+import { MONITOR_ETF_SYMBOLS } from '../data/stockUniverse';
+
 const BATCH = 80; // symbols per API call
 
 async function fetchQuotes(symbols) {
@@ -355,7 +357,7 @@ export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeE
 
   // Quotes refresh every cycle; history is cached for 10 minutes
   // Always include SPY so we can compute relative-strength-vs-market for every stock
-  const fetchSymbols = [...new Set([...allUniqueStocks, ...allEtfSymbols, 'SPY'])];
+  const fetchSymbols = [...new Set([...allUniqueStocks, ...allEtfSymbols, ...MONITOR_ETF_SYMBOLS, 'SPY'])];
   const [quotes, history] = await Promise.all([
     fetchQuotes(fetchSymbols),
     getCachedHistory(allEtfSymbols),

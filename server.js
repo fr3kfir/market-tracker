@@ -79,6 +79,8 @@ app.get('/api/history', async (req, res) => {
       if (result) {
         out[sym] = {
           closes: result.indicators.quote[0].close,
+          highs:  result.indicators.quote[0].high,
+          lows:   result.indicators.quote[0].low,
           timestamps: result.timestamp,
         };
       }
@@ -110,11 +112,13 @@ app.get('/api/news', async (req, res) => {
 });
 
 // GET /api/sec — SEC EDGAR filings feed (delegates to Vercel function)
-import secHandler        from './api/sec.js';
-import secPreviewHandler from './api/sec-preview.js';
+import secHandler         from './api/sec.js';
+import secPreviewHandler  from './api/sec-preview.js';
+import marketBriefHandler from './api/market-brief.js';
 
-app.get('/api/sec',         (req, res) => secHandler(req, res));
-app.get('/api/sec-preview', (req, res) => secPreviewHandler(req, res));
+app.get('/api/sec',          (req, res) => secHandler(req, res));
+app.get('/api/sec-preview',  (req, res) => secPreviewHandler(req, res));
+app.get('/api/market-brief', (req, res) => marketBriefHandler(req, res));
 
 const PORT = 3001;
 app.listen(PORT, () => console.log(`📡 Market proxy → http://localhost:${PORT}`));
