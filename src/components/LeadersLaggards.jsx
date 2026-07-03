@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { INDUSTRY_GROUPS, THEME_ETFS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from '../data/stockUniverse';
+import { INDUSTRY_GROUPS, THEME_ETFS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS, MONITOR_ETF_SYMBOLS } from '../data/stockUniverse';
 import { fetchRelativeStrengthData } from '../services/relativeStrength';
 import { STAGE_COLORS } from './StageOverview';
 import TickerInfoPopup from './TickerInfoPopup';
@@ -7,7 +7,7 @@ import TickerInfoPopup from './TickerInfoPopup';
 const RS_COLOR = rs => rs >= 80 ? '#10b981' : rs >= 60 ? '#3b82f6' : rs >= 40 ? '#f59e0b' : '#e879f9';
 
 // Symbols that are ETFs / benchmark — never rank them as stocks
-const ETF_SET = new Set([...Object.values(THEME_ETFS), ...HOT_THEMES.map(t => t.etf), 'SPY']);
+const ETF_SET = new Set([...Object.values(THEME_ETFS), ...HOT_THEMES.map(t => t.etf), ...MONITOR_ETF_SYMBOLS, 'SPY']);
 
 const TIMEFRAMES = [
   { key: 'today',    label: 'Today',    needsHistory: false },
