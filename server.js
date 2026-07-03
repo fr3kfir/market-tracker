@@ -62,16 +62,19 @@ app.get('/api/quotes', async (req, res) => {
   }
 });
 
-// GET /api/history?symbols=SMH,IBB&range=6mo
+// GET /api/history?symbols=SMH,IBB&range=6mo&interval=1d
+const HISTORY_INTERVALS = new Set(['1d', '60m', '30m', '15m', '5m', '1wk', '1mo']);
+
 app.get('/api/history', async (req, res) => {
-  const { symbols, range = '6mo' } = req.query;
+  const { symbols, range = '6mo', interval = '1d' } = req.query;
   if (!symbols) return res.status(400).json({ error: 'symbols required' });
   const list = symbols.split(',').map(s => s.trim()).filter(Boolean);
+  const iv = HISTORY_INTERVALS.has(interval) ? interval : '1d';
 
   try {
     const out = {};
     await Promise.all(list.map(async (sym) => {
-      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}&crumb=${encodeURIComponent(crumb)}`;
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=${iv}&range=${range}&crumb=${encodeURIComponent(crumb)}`;
       const r = await fetch(url, { headers: { Cookie: cookieStr, 'User-Agent': UA } });
       if (!r.ok) return;
       const d = await r.json();

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SECTOR_STOCKS, INDUSTRY_GROUPS } from '../data/stockUniverse';
-import MiniChart from './MiniChart';
+import TVChart from './TVChart';
 
 function buildLookup() {
   const map = {};
@@ -21,7 +21,14 @@ function buildLookup() {
 
 const TICKER_LOOKUP = buildLookup();
 const TABS = ['Overview', 'Chart', 'Fundamentals', 'News', 'SEC'];
-const CHART_RANGES = ['1W', '1M', '3M'];
+// Candle interval — same semantics as the Screener timeframe buttons
+const CHART_RANGES = [
+  { key: '1h', label: '1H · hourly' },
+  { key: '4h', label: '4H' },
+  { key: '1D', label: '1D · daily' },
+  { key: '1W', label: '1W · weekly' },
+  { key: '1M', label: '1M · monthly' },
+];
 const STAGE_COLORS = { S1: '#94a3b8', S2: '#60a5fa', S3: '#f59e0b', S4: '#f472b6' };
 const RS_COLOR = rs => rs >= 80 ? '#10b981' : rs >= 60 ? '#3b82f6' : rs >= 40 ? '#f59e0b' : '#e879f9';
 const FORM_COLORS = { '8-K': '#f59e0b', '10-K': '#60a5fa', '10-Q': '#34d399', 'S-1': '#e879f9' };
@@ -39,7 +46,7 @@ function FundRow({ label, value, color }) {
 
 export default function TickerInfoPopup({ ticker: initTicker, stock: initStock, onClose, allStocks = [], onClip }) {
   const [tab, setTab] = useState('Overview');
-  const [chartRange, setChartRange] = useState('3M');
+  const [chartRange, setChartRange] = useState('1D');
 
   const [navIdx, setNavIdx] = useState(() => {
     const i = allStocks.findIndex(s => s.ticker === initTicker);
@@ -201,16 +208,16 @@ export default function TickerInfoPopup({ ticker: initTicker, stock: initStock, 
             <div>
               <div style={{ display: 'flex', gap: 5, marginBottom: 12, justifyContent: 'center' }}>
                 {CHART_RANGES.map(r => (
-                  <button key={r} onClick={() => setChartRange(r)} style={{
+                  <button key={r.key} onClick={() => setChartRange(r.key)} title={r.label} style={{
                     padding: '4px 14px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
                     borderRadius: 20, border: '1px solid', cursor: 'pointer',
-                    borderColor: chartRange === r ? '#a78bfa' : 'var(--border)',
-                    background: chartRange === r ? 'rgba(167,139,250,0.15)' : 'transparent',
-                    color: chartRange === r ? '#a78bfa' : 'var(--text-muted)',
-                  }}>{r}</button>
+                    borderColor: chartRange === r.key ? '#a78bfa' : 'var(--border)',
+                    background: chartRange === r.key ? 'rgba(167,139,250,0.15)' : 'transparent',
+                    color: chartRange === r.key ? '#a78bfa' : 'var(--text-muted)',
+                  }}>{r.key.toUpperCase()}</button>
                 ))}
               </div>
-              <MiniChart ticker={ticker} range={chartRange} height={280} />
+              <TVChart ticker={ticker} range={chartRange} height={280} />
             </div>
           )}
 

@@ -15,9 +15,9 @@ const FILTER_TABS = ['Descriptive', 'Fundamental', 'Technical', 'Performance'];
 // Each key maps to a TradingView interval in MiniChart.jsx
 const CHART_RANGES = [
   { key: '1h', label: '1H', title: '1-Hour candles · 5 days of history' },
-  { key: '4h', label: '4H', title: '4-Hour candles · 5 days of history' },
+  { key: '4h', label: '4H', title: '4-Hour candles · 1 month of history' },
   { key: '1D', label: '1D', title: 'Daily candles · 3 months of history' },
-  { key: '1W', label: '1W', title: 'Weekly candles · 1 year of history' },
+  { key: '1W', label: '1W', title: 'Weekly candles · 2 years of history' },
   { key: '1M', label: '1M', title: 'Monthly candles · 5 years of history' },
 ];
 
@@ -323,7 +323,7 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, s
       {/* Inline mini sparkline — SVG, no iframe, renders at any height */}
       {showMiniCharts && (
         <td style={{ padding: '4px 6px', width: 196 }} onClick={e => e.stopPropagation()}>
-          <Sparkline ticker={stock.ticker} width={184} height={56} />
+          <Sparkline ticker={stock.ticker} range={chartRange} width={184} height={56} />
         </td>
       )}
       <td style={{ padding: '7px 10px', fontSize: 11, color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stock.name || '—'}</td>

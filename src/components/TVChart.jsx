@@ -20,39 +20,67 @@ import {
   ColorType,
 } from 'lightweight-charts';
 
-// ── Range mapping: Screener key → /api/history range param ───────────────
-const RANGE_TO_API = {
-  '1h': '5d',
-  '4h': '5d',
-  '1D': '3mo',
-  '1W': '1y',
-  '1M': '2y',
+// ── Range mapping: candle-interval key → API params ───────────────────────
+// Each Screener timeframe key controls the CANDLE SIZE. The API is asked for
+// the matching Yahoo interval; '4h' is aggregated client-side from 60m bars.
+const RANGE_CONFIG = {
+  '1h': { api: '5d',  interval: '60m', aggregate: 1, intraday: true },
+  '4h': { api: '1mo', interval: '60m', aggregate: 4, intraday: true },
+  '1D': { api: '3mo', interval: '1d' },
+  '1W': { api: '2y',  interval: '1wk' },
+  '1M': { api: '5y',  interval: '1mo' },
 };
 
-// ── Module-level OHLCV cache (per ticker+range) ───────────────────────────
+// Merge n sequential bars into one (open=first, high=max, low=min, close=last).
+// Buckets reset at day boundaries so a 4h candle never spans two sessions.
+function aggregateBars(bars, n) {
+  if (n <= 1) return bars;
+  const out = [];
+  let bucket = null, count = 0, day = null;
+  for (const b of bars) {
+    const d = new Date(b.time * 1000).toISOString().slice(0, 10);
+    if (!bucket || count >= n || d !== day) {
+      if (bucket) out.push(bucket);
+      bucket = { ...b };
+      count = 1;
+      day = d;
+    } else {
+      bucket.high    = Math.max(bucket.high, b.high);
+      bucket.low     = Math.min(bucket.low, b.low);
+      bucket.close   = b.close;
+      bucket.volume += b.volume;
+      count++;
+    }
+  }
+  if (bucket) out.push(bucket);
+  return out;
+}
+
+// ── Module-level OHLCV cache (per ticker+range key) ───────────────────────
 const _cache   = {};
 const _pending = {};
 
-async function loadOHLCV(ticker, apiRange) {
-  const key = `${ticker}:${apiRange}`;
+async function loadOHLCV(ticker, rangeKey) {
+  const cfg = RANGE_CONFIG[rangeKey] || RANGE_CONFIG['1D'];
+  const key = `${ticker}:${cfg.api}:${cfg.interval}`;
   if (_cache[key])   return _cache[key];
   if (_pending[key]) return _pending[key];
 
-  _pending[key] = fetch(`/api/history?symbols=${ticker}&range=${apiRange}`)
+  _pending[key] = fetch(`/api/history?symbols=${ticker}&range=${cfg.api}&interval=${cfg.interval}`)
     .then(r => r.json())
     .then(data => {
-      // Convert Unix timestamps to 'YYYY-MM-DD' strings for daily bars
-      const raw = data[ticker]?.ohlcv || [];
-      const candles = raw
-        .filter(d => d.close != null && d.open != null)
-        .map(d => ({
-          time:   new Date(d.time * 1000).toISOString().split('T')[0],
-          open:   d.open,
-          high:   d.high,
-          low:    d.low,
-          close:  d.close,
-          volume: d.volume || 0,
-        }));
+      const raw = (data[ticker]?.ohlcv || []).filter(d => d.close != null && d.open != null);
+      const bars = aggregateBars(raw, cfg.aggregate || 1);
+      const candles = bars.map(d => ({
+        // Intraday bars keep epoch seconds so the axis shows real times;
+        // daily+ bars use date strings so the axis shows dates only.
+        time:   cfg.intraday ? d.time : new Date(d.time * 1000).toISOString().split('T')[0],
+        open:   d.open,
+        high:   d.high,
+        low:    d.low,
+        close:  d.close,
+        volume: d.volume || 0,
+      }));
       _cache[key] = candles;
       return candles;
     })
@@ -89,18 +117,19 @@ export default function TVChart({ ticker, range = '1D', height = 320 }) {
   const [ohlcv, setOhlcv] = useState(null);
   const [error, setError] = useState(false);
 
-  const apiRange = RANGE_TO_API[range] || '3mo';
+  const rangeKey = RANGE_CONFIG[range] ? range : '1D';
+  const intraday = !!RANGE_CONFIG[rangeKey].intraday;
 
   // ── Fetch when ticker or range changes ───────────────────────────────
   useEffect(() => {
     let alive = true;
     setOhlcv(null);
     setError(false);
-    loadOHLCV(ticker, apiRange)
+    loadOHLCV(ticker, rangeKey)
       .then(data => { if (alive) setOhlcv(data); })
       .catch(() => { if (alive) setError(true); });
     return () => { alive = false; };
-  }, [ticker, apiRange]);
+  }, [ticker, rangeKey]);
 
   // ── Build chart when data is ready ───────────────────────────────────
   useEffect(() => {
@@ -124,6 +153,9 @@ export default function TVChart({ ticker, range = '1D', height = 320 }) {
         textColor: TEXT,
         fontSize: 10,
       },
+      // Explicit locale — lightweight-charts falls back to navigator.language,
+      // which can be an invalid Intl tag on some systems and break rendering
+      localization: { locale: 'en-US' },
       grid: {
         vertLines: { color: GRID },
         horzLines: { color: GRID },
@@ -135,7 +167,7 @@ export default function TVChart({ ticker, range = '1D', height = 320 }) {
       },
       timeScale: {
         borderColor: BORDER,
-        timeVisible: true,
+        timeVisible: intraday, // show HH:MM only for intraday candles
         secondsVisible: false,
         fixLeftEdge: true,
         fixRightEdge: true,
@@ -207,7 +239,7 @@ export default function TVChart({ ticker, range = '1D', height = 320 }) {
         chartRef.current = null;
       }
     };
-  }, [ohlcv, height]);
+  }, [ohlcv, height, intraday]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height, background: BG }}>

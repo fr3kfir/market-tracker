@@ -3,9 +3,12 @@ import YahooFinance from 'yahoo-finance2';
 
 const yf = new YahooFinance();
 
+const HISTORY_INTERVALS = new Set(['1d', '60m', '30m', '15m', '5m', '1wk', '1mo']);
+
 function rangeToDate(range) {
   const d = new Date();
-  if      (range === '2y')  d.setFullYear(d.getFullYear() - 2);
+  if      (range === '5y')  d.setFullYear(d.getFullYear() - 5);
+  else if (range === '2y')  d.setFullYear(d.getFullYear() - 2);
   else if (range === '1y')  d.setFullYear(d.getFullYear() - 1);
   else if (range === '6mo') d.setMonth(d.getMonth() - 6);
   else if (range === '3mo') d.setMonth(d.getMonth() - 3);
@@ -21,8 +24,9 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { symbols, range = '6mo' } = req.query;
+  const { symbols, range = '6mo', interval = '1d' } = req.query;
   if (!symbols) return res.status(400).json({ error: 'symbols required' });
+  const iv = HISTORY_INTERVALS.has(interval) ? interval : '1d';
 
   try {
     const list = symbols.split(',').map(s => s.trim()).filter(Boolean);
@@ -30,7 +34,7 @@ export default async function handler(req, res) {
 
     const results = await Promise.allSettled(
       list.map(async (sym) => {
-        const chart = await yf.chart(sym, { period1, interval: '1d' }, { validateResult: false });
+        const chart = await yf.chart(sym, { period1, interval: iv }, { validateResult: false });
         if (!chart?.quotes?.length) return [sym, null];
         const valid = chart.quotes.filter(q => q.close != null);
         const closes = valid.map(q => q.close);
