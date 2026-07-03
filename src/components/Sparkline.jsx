@@ -13,40 +13,50 @@
 
 import { useState, useEffect } from 'react';
 
+// ── Timeframe → API params (same keys as the Screener candle buttons) ────
+const RANGE_CONFIG = {
+  '1h': { api: '5d',  interval: '60m' },
+  '4h': { api: '1mo', interval: '60m' },
+  '1D': { api: '1mo', interval: '1d' },
+  '1W': { api: '6mo', interval: '1d' },
+  '1M': { api: '1y',  interval: '1wk' },
+};
+
 // ── Module-level cache (survives re-renders, cleared on page reload) ────
-const _cache   = {};   // ticker → closes[]
-const _pending = {};   // ticker → Promise
+const _cache   = {};   // ticker:range:interval → closes[]
+const _pending = {};   // ticker:range:interval → Promise
 
-async function loadCloses(ticker) {
-  if (_cache[ticker])   return _cache[ticker];
-  if (_pending[ticker]) return _pending[ticker];
+async function loadCloses(ticker, range) {
+  const cfg = RANGE_CONFIG[range] || RANGE_CONFIG['1D'];
+  const key = `${ticker}:${cfg.api}:${cfg.interval}`;
+  if (_cache[key])   return _cache[key];
+  if (_pending[key]) return _pending[key];
 
-  _pending[ticker] = fetch(`/api/history?symbols=${ticker}&range=1mo`)
+  _pending[key] = fetch(`/api/history?symbols=${ticker}&range=${cfg.api}&interval=${cfg.interval}`)
     .then(r => r.json())
     .then(data => {
       const closes = (data[ticker]?.closes || []).filter(v => v != null && isFinite(v));
-      _cache[ticker] = closes;
+      _cache[key] = closes;
       return closes;
     })
     .catch(() => {
-      _cache[ticker] = [];
+      _cache[key] = [];
       return [];
     })
-    .finally(() => { delete _pending[ticker]; });
+    .finally(() => { delete _pending[key]; });
 
-  return _pending[ticker];
+  return _pending[key];
 }
 
-export default function Sparkline({ ticker, width = 180, height = 60 }) {
-  const [closes, setCloses] = useState(_cache[ticker] || null);
+export default function Sparkline({ ticker, range = '1D', width = 180, height = 60 }) {
+  const [closes, setCloses] = useState(null);
 
   useEffect(() => {
     let alive = true;
-    if (!_cache[ticker]) {
-      loadCloses(ticker).then(c => { if (alive) setCloses(c); });
-    }
+    setCloses(null);
+    loadCloses(ticker, range).then(c => { if (alive) setCloses(c); });
     return () => { alive = false; };
-  }, [ticker]);
+  }, [ticker, range]);
 
   // ── Loading placeholder ───────────────────────────────────────────────
   if (!closes) {
@@ -83,11 +93,11 @@ export default function Sparkline({ ticker, width = 180, height = 60 }) {
 
   const min = Math.min(...closes);
   const max = Math.max(...closes);
-  const range = max - min || 1;
+  const span = max - min || 1;
 
   const pts = closes.map((c, i) => {
     const x = padX + (i / (closes.length - 1)) * innerW;
-    const y = padY + innerH - ((c - min) / range) * innerH;
+    const y = padY + innerH - ((c - min) / span) * innerH;
     return [x, y];
   });
 

@@ -25,7 +25,9 @@ async function getAuth() {
 }
 
 exports.handler = async (event) => {
-  const { symbols, type, range = '6mo' } = event.queryStringParameters || {};
+  const { symbols, type, range = '6mo', interval = '1d' } = event.queryStringParameters || {};
+  const HISTORY_INTERVALS = new Set(['1d', '60m', '30m', '15m', '5m', '1wk', '1mo']);
+  const iv = HISTORY_INTERVALS.has(interval) ? interval : '1d';
   if (!symbols) return { statusCode: 400, body: JSON.stringify({ error: 'symbols required' }) };
 
   const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
@@ -38,12 +40,13 @@ exports.handler = async (event) => {
       const list = symbols.split(',').map(s => s.trim());
       const results = await Promise.allSettled(
         list.map(async (sym) => {
-          const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}&crumb=${encodeURIComponent(crumb)}`;
+          const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=${iv}&range=${range}&crumb=${encodeURIComponent(crumb)}`;
           const r = await fetch(url, { headers: yfHeaders });
           const data = await r.json();
           const result = data?.chart?.result?.[0];
           if (!result) return [sym, null];
-          return [sym, { closes: result.indicators.quote[0].close, timestamps: result.timestamp }];
+          const q = result.indicators.quote[0];
+          return [sym, { closes: q.close, highs: q.high, lows: q.low, timestamps: result.timestamp }];
         })
       );
       const out = {};
