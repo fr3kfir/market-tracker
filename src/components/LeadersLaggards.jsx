@@ -246,6 +246,7 @@ export default function LeadersLaggards({ stocksByTicker, industryGroupData, onC
         rsDisplay: hist?.rsScore ?? s.rs,
         rsLineDist: hist?.rsLineDist ?? null,
         pullbackHold: hist?.pullbackHold ?? null,
+        adrPct: hist?.adrPct ?? null,
         groupName: group?.name,
         groupRank: group?.rank,
       });
@@ -253,11 +254,13 @@ export default function LeadersLaggards({ stocksByTicker, industryGroupData, onC
 
     let leadPool = rows, lagPool = rows;
     if (strict) {
-      // Ariel long setup: uptrend (S2), high RS, above 50dma, within striking distance of highs
+      // Ariel long setup: uptrend (S2), high RS, above 50dma, near highs,
+      // and the stock actually MOVES — ADR ≥ 3.5%
       leadPool = rows.filter(s =>
         s.stage === 'S2' && s.rsDisplay >= 70 &&
         (s.distSma50 == null || s.distSma50 >= 0) &&
-        (s.distSma52wHigh == null || s.distSma52wHigh >= -25)
+        (s.distSma52wHigh == null || s.distSma52wHigh >= -25) &&
+        (s.adrPct == null || s.adrPct >= 3.5)
       );
       // Ariel short/avoid: downtrend, weak RS, below 50dma
       lagPool = rows.filter(s =>
@@ -326,7 +329,7 @@ export default function LeadersLaggards({ stocksByTicker, industryGroupData, onC
           </div>
 
           {/* Toggles */}
-          <button onClick={() => setStrict(v => !v)} style={btn(strict)} title="Leaders: S2 · RS ≥ 70 · above 50dma · within 25% of 52w high. Laggards: S4 or below 50dma · RS ≤ 40.">
+          <button onClick={() => setStrict(v => !v)} style={btn(strict)} title="Leaders: S2 · RS ≥ 70 · ADR ≥ 3.5% · above 50dma · within 25% of 52w high. Laggards: S4 or below 50dma · RS ≤ 40.">
             ⚡ Strict Ariel
           </button>
           <button onClick={() => setTop40Only(v => !v)} style={btn(top40Only)} title="Only stocks in the Top-40 ranked industry groups">

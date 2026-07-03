@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
-import { SECTOR_STOCKS, INDUSTRY_GROUPS } from '../data/stockUniverse';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { SECTOR_STOCKS, INDUSTRY_GROUPS, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from '../data/stockUniverse';
+import { fetchRelativeStrengthData } from '../services/relativeStrength';
 import TickerInfoPopup from './TickerInfoPopup';
 import Sparkline from './Sparkline';
 import TVChart from './TVChart';
@@ -22,6 +23,11 @@ const CHART_RANGES = [
 
 const CHARTS_PER_PAGE = 50; // Pagination
 
+const UNIVERSE_SYMBOLS = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])];
+
+// ADR% color: Ariel only trades names that move — ≥3.5% is tradeable
+const ADR_COLOR = adr => adr >= 5 ? '#a78bfa' : adr >= 3.5 ? '#34d399' : adr >= 2 ? '#f59e0b' : '#f87171';
+
 // ── Group Rank filter options ───────────────────────────────────────────
 const GROUP_RANK_OPTIONS = [
   { label: 'All',    value: null },
@@ -34,8 +40,8 @@ const GROUP_RANK_OPTIONS = [
 const PRESETS = [
   {
     label: '⚡ Ariel Setup',
-    desc:  'S2 · RS ≥ 80 · Top 40 Groups · Within 10% of 52w High',
-    filters: { stages: ['S2'], rsMin: 80, distHighMin: -10, distHighMax: 0 },
+    desc:  'S2 · RS ≥ 80 · ADR ≥ 3.5% · Top 40 Groups · Within 10% of 52w High',
+    filters: { stages: ['S2'], rsMin: 80, distHighMin: -10, distHighMax: 0, adrMin: 3.5 },
     groupRankMax: 40,
   },
   {
@@ -114,6 +120,7 @@ const DEFAULT_FILTERS = {
   relVsMktMin: '', relVsMktMax: '',
   distHighMin: '', distHighMax: '', distLowMin: '', distLowMax: '',
   betaMin: '', betaMax: '', volBuzzMin: '', volBuzzMax: '',
+  adrMin: '', adrMax: '',
   avgVolMin: '', avgVolMax: '', volumeMin: '', volumeMax: '',
   priceMin: '', priceMax: '', targetUpsideMin: '', targetUpsideMax: '',
   w1Min: '', w1Max: '', m1Min: '', m1Max: '', m3Min: '', m3Max: '',
@@ -160,6 +167,7 @@ function applyFilters(stocks, f, groupRankMax, tickerGroupRank) {
     if (!pass(s.distSma52wHigh,  'distHighMin',       'distHighMax',       f)) return false;
     if (!pass(s.distSma52wLow,   'distLowMin',        'distLowMax',        f)) return false;
     if (!pass(s.beta,            'betaMin',           'betaMax',           f)) return false;
+    if (!pass(s.adrPct,          'adrMin',            'adrMax',            f)) return false;
     if (!pass(s.volBuzz,         'volBuzzMin',        'volBuzzMax',        f)) return false;
     if (!pass(s.avgVolume,       'avgVolMin',         'avgVolMax',         f)) return false;
     if (!pass(s.volume,          'volumeMin',         'volumeMax',         f)) return false;
@@ -338,6 +346,9 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, s
       <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: stock.rs != null ? RS_COLOR(stock.rs) : 'var(--text-faint)' }}>
         {stock.rs != null ? stock.rs : '—'}
       </td>
+      <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: stock.adrPct != null ? ADR_COLOR(stock.adrPct) : 'var(--text-faint)' }}>
+        {stock.adrPct != null ? `${stock.adrPct.toFixed(1)}%` : '—'}
+      </td>
       <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, color: stock.volBuzz != null ? (stock.volBuzz >= 1.5 ? '#f59e0b' : 'var(--text-muted)') : 'var(--text-faint)' }}>
         {stock.volBuzz != null ? `${stock.volBuzz.toFixed(1)}x` : '—'}
       </td>
@@ -404,6 +415,12 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
         {stock.rs != null && (
           <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: RS_COLOR(stock.rs), background: RS_COLOR(stock.rs) + '18', padding: '1px 4px', borderRadius: 3, flexShrink: 0 }}>
             RS {stock.rs}
+          </span>
+        )}
+        {/* ADR% */}
+        {stock.adrPct != null && (
+          <span title="Average Daily Range % (20 days)" style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: ADR_COLOR(stock.adrPct), background: ADR_COLOR(stock.adrPct) + '18', padding: '1px 4px', borderRadius: 3, flexShrink: 0 }}>
+            ADR {stock.adrPct.toFixed(1)}%
           </span>
         )}
         {/* Group rank */}
@@ -518,7 +535,33 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
     [tickerToGroupInfo]
   );
 
-  const allStocks = useMemo(() => Object.values(stocksByTicker), [stocksByTicker]);
+  // Enrich with history-derived metrics (ADR%, 1W/1M/3M returns) — shared
+  // 10-minute cache with the Leaders/Laggards tab, so this is one fetch app-wide.
+  const [histData, setHistData] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const d = await fetchRelativeStrengthData(UNIVERSE_SYMBOLS);
+        if (!cancelled) setHistData(d.byTicker);
+      } catch (e) {
+        console.error('Screener history enrichment error:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const allStocks = useMemo(() => Object.values(stocksByTicker).map(s => {
+    const h = histData?.[s.ticker];
+    if (!h) return s;
+    return {
+      ...s,
+      adrPct: h.adrPct ?? null,
+      w1: s.w1 ?? h.r1w ?? null,
+      m1: s.m1 ?? h.r1m ?? null,
+      m3: s.m3 ?? h.r3m ?? null,
+    };
+  }), [stocksByTicker, histData]);
   const filtered  = useMemo(
     () => applyFilters(allStocks, filters, groupRankMax, tickerGroupRank),
     [allStocks, filters, groupRankMax, tickerGroupRank]
@@ -737,6 +780,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
               </FilterGroup>
               <FilterGroup title="Strength & Volatility">
                 <RangeRow label="RS Rating"            minKey="rsMin"     maxKey="rsMax"     {...sf} />
+                <RangeRow label="ADR % (20-day)"       minKey="adrMin"    maxKey="adrMax"    {...sf} step="0.5" note="avg daily range · Ariel: ≥ 3.5" />
                 <RangeRow label="Beta"                 minKey="betaMin"   maxKey="betaMax"   {...sf} step="0.1" />
               </FilterGroup>
               <FilterGroup title="Volume">
@@ -857,6 +901,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                   <SortTh label="1M"        col="m1"             {...thProps} />
                   <SortTh label="3M"        col="m3"             {...thProps} />
                   <SortTh label="RS"        col="rs"             {...thProps} />
+                  <SortTh label="ADR"       col="adrPct"         title="Average Daily Range % over 20 days — Ariel trades names with ADR ≥ 3.5%" {...thProps} />
                   <SortTh label="Vol Buzz"  col="volBuzz"        {...thProps} />
                   <SortTh label="52w High"  col="distSma52wHigh" {...thProps} />
                   <SortTh label="Mkt Cap"   col="marketCapB"     {...thProps} />
@@ -866,7 +911,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
               </thead>
               <tbody>
                 {sorted.length === 0 ? (
-                  <tr><td colSpan={showMiniCharts ? 16 : 15} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
+                  <tr><td colSpan={showMiniCharts ? 17 : 16} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
                 ) : sorted.map((stock, i) => {
                   const gi = tickerToGroupInfo[stock.ticker];
                   return (

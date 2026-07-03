@@ -25,14 +25,31 @@ async function fetchHistoryBatch(symbols) {
 
 function cleanSeries(hist) {
   if (!hist?.closes || !hist?.timestamps) return null;
-  const ts = [], closes = [];
+  const ts = [], closes = [], highs = [], lows = [];
   for (let i = 0; i < hist.closes.length; i++) {
     if (hist.closes[i] != null && hist.timestamps[i] != null) {
       ts.push(hist.timestamps[i]);
       closes.push(hist.closes[i]);
+      highs.push(hist.highs?.[i] ?? hist.closes[i]);
+      lows.push(hist.lows?.[i] ?? hist.closes[i]);
     }
   }
-  return closes.length >= 10 ? { ts, closes } : null;
+  return closes.length >= 10 ? { ts, closes, highs, lows } : null;
+}
+
+// ADR% — Average Daily Range over the last 20 sessions: avg(high/low) - 1.
+// Ariel only trades names that actually move — typically ADR ≥ 3.5%.
+function calcAdrPct(highs, lows) {
+  const n = highs.length;
+  const from = Math.max(0, n - 20);
+  let sum = 0, cnt = 0;
+  for (let i = from; i < n; i++) {
+    if (highs[i] > 0 && lows[i] > 0 && highs[i] >= lows[i]) {
+      sum += highs[i] / lows[i];
+      cnt++;
+    }
+  }
+  return cnt >= 10 ? Math.round((sum / cnt - 1) * 1000) / 10 : null;
 }
 
 function returnOver(closes, days) {
@@ -119,6 +136,9 @@ export async function fetchRelativeStrengthData(allSymbols) {
       holdCnt++;
     }
     entry.pullbackHold = holdCnt >= 2 ? Math.round((holdSum / holdCnt) * 10) / 10 : null;
+
+    // ADR% — how much the stock actually moves per day
+    entry.adrPct = calcAdrPct(s.highs, s.lows);
 
     // Weighted momentum (renormalize over available timeframes)
     let wSum = 0, wTot = 0;

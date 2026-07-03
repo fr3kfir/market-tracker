@@ -34,6 +34,8 @@ export default async function handler(req, res) {
         if (!chart?.quotes?.length) return [sym, null];
         const valid = chart.quotes.filter(q => q.close != null);
         const closes = valid.map(q => q.close);
+        const highs  = valid.map(q => q.high ?? q.close);
+        const lows   = valid.map(q => q.low  ?? q.close);
         const timestamps = valid.map(q => Math.floor(q.date.getTime() / 1000));
         const ohlcv = valid.map(q => ({
           time:   Math.floor(q.date.getTime() / 1000),
@@ -43,7 +45,7 @@ export default async function handler(req, res) {
           close:  q.close,
           volume: q.volume ?? 0,
         }));
-        return [sym, { closes, timestamps, ohlcv }];
+        return [sym, { closes, highs, lows, timestamps, ohlcv }];
       })
     );
 

@@ -79,6 +79,8 @@ app.get('/api/history', async (req, res) => {
       if (result) {
         out[sym] = {
           closes: result.indicators.quote[0].close,
+          highs:  result.indicators.quote[0].high,
+          lows:   result.indicators.quote[0].low,
           timestamps: result.timestamp,
         };
       }
