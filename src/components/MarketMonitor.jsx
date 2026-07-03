@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { SECTOR_ETFS, HEAVYWEIGHTS, THEME_ETFS, HOT_THEMES, MONITOR_ETF_SYMBOLS } from '../data/stockUniverse';
 
 // Deepvue-style palette: blue = strength, pink = weakness
@@ -135,6 +135,76 @@ function ThemeRow({ name, value, max, onClick }) {
   );
 }
 
+const SENTIMENT_COLORS = { Bullish: '#34d399', Neutral: '#f59e0b', Bearish: PINK };
+
+function MarketBrief() {
+  const [brief, setBrief] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await fetch('/api/market-brief');
+        const d = await r.json();
+        if (cancelled) return;
+        if (d.error) setError(d.error);
+        else setBrief(d);
+      } catch {
+        if (!cancelled) setError('Failed to load market brief');
+      }
+    };
+    load();
+    const id = setInterval(load, 15 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const sentimentChip = brief?.sentiment && (
+    <span style={{
+      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+      color: SENTIMENT_COLORS[brief.sentiment] || 'var(--text-muted)',
+      background: (SENTIMENT_COLORS[brief.sentiment] || '#888') + '18',
+      border: `1px solid ${(SENTIMENT_COLORS[brief.sentiment] || '#888')}33`,
+    }}>
+      {brief.sentiment}
+    </span>
+  );
+
+  return (
+    <Panel
+      title="Market Brief"
+      right={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>News Sentiment</span>
+          {sentimentChip}
+        </div>
+      }
+    >
+      {brief?.unavailable && (
+        <p style={{ fontSize: 11, color: 'var(--text-faint)', lineHeight: 1.6, margin: 0 }}>
+          AI Market Brief is off — set <code style={{ fontFamily: 'monospace' }}>ANTHROPIC_API_KEY</code> on the server to enable it.
+        </p>
+      )}
+      {error && !brief && (
+        <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>⚠ {error}</p>
+      )}
+      {!brief && !error && (
+        <p style={{ fontSize: 11, color: 'var(--text-faint)', margin: 0 }}>Generating market brief…</p>
+      )}
+      {brief?.paragraphs?.map((p, i) => (
+        <p key={i} style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.65, margin: i === 0 ? 0 : '10px 0 0' }}>
+          {p}
+        </p>
+      ))}
+      {brief?.generatedAt && (
+        <p style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace', margin: '10px 0 0' }}>
+          AI-generated from {brief.headlineCount} headlines · {new Date(brief.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}{brief.stale ? ' · stale' : ''}
+        </p>
+      )}
+    </Panel>
+  );
+}
+
 export default function MarketMonitor({ breadth, stocksByTicker, hotThemeData, onThemeClick }) {
   const [themeTf, setThemeTf] = useState('d1');
 
@@ -254,13 +324,16 @@ export default function MarketMonitor({ breadth, stocksByTicker, hotThemeData, o
         </Panel>
       </div>
 
-      {/* Col 4 — Liquid Leaders */}
-      <Panel title="Liquid Leaders">
-        <div style={{ fontSize: 9.5, color: 'var(--text-faint)', marginBottom: 6 }}>
-          Top movers with ≥ $25M avg daily dollar volume
-        </div>
-        {liquidLeaders.rows.map(r => <BarRow key={r.label} {...r} max={liquidLeaders.max} />)}
-      </Panel>
+      {/* Col 4 — Market Brief + Liquid Leaders */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <MarketBrief />
+        <Panel title="Liquid Leaders">
+          <div style={{ fontSize: 9.5, color: 'var(--text-faint)', marginBottom: 6 }}>
+            Top movers with ≥ $25M avg daily dollar volume
+          </div>
+          {liquidLeaders.rows.map(r => <BarRow key={r.label} {...r} max={liquidLeaders.max} />)}
+        </Panel>
+      </div>
     </div>
   );
 }
