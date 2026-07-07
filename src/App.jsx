@@ -17,7 +17,7 @@ import ClipboardPanel from './components/ClipboardPanel';
 import SecFilings from './components/SecFilings';
 import EarningsCalendar from './components/EarningsCalendar';
 import HighLowScanner from './components/HighLowScanner';
-import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from './data/stockUniverse';
+import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS, SECTOR_ETF_TO_SECTOR } from './data/stockUniverse';
 import { fetchArielBreadthData } from './services/arielBreadth';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
 import './index.css';
@@ -377,6 +377,20 @@ export default function App() {
     }
   }, []);
 
+  // Monitor tab: click a sector ETF bar (XLK, XLF, …) → drill into that sector's stocks
+  const handleMonitorSectorClick = useCallback((etfSym) => {
+    const sectorName = SECTOR_ETF_TO_SECTOR[etfSym];
+    if (sectorName) handleDrillDown(sectorName);
+  }, [handleDrillDown]);
+
+  // Monitor tab: click a thematic ETF bar (BITO, SOXX, …) → drill into that theme's stocks
+  const handleMonitorEtfClick = useCallback((etfSym) => {
+    const hotTheme = HOT_THEMES.find(t => t.etf === etfSym);
+    if (hotTheme) { handleHotThemeClick(hotTheme.name); return; }
+    const legacy = Object.entries(THEME_ETFS).find(([, sym]) => sym === etfSym);
+    if (legacy) handleDrillDown(legacy[0]);
+  }, [handleHotThemeClick, handleDrillDown]);
+
   const handleBreadthFilter = useCallback((filterKey, filterLabel) => {
     const filtered = filterStocksByBreadth(filterKey, stocksByTickerRef.current);
     setLeaders(filtered);
@@ -556,7 +570,7 @@ export default function App() {
           </div>
         )}
         {desktopTab === 'monitor' && breadth && (
-          <MarketMonitor breadth={breadth} stocksByTicker={stocksByTicker || {}} hotThemeData={hotThemeData || []} onThemeClick={handleHotThemeClick} />
+          <MarketMonitor breadth={breadth} stocksByTicker={stocksByTicker || {}} hotThemeData={hotThemeData || []} onThemeClick={handleHotThemeClick} onSectorClick={handleMonitorSectorClick} onEtfClick={handleMonitorEtfClick} onClip={onClip} />
         )}
         {desktopTab === 'rs' && (
           <LeadersLaggards stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} onClip={onClip} />
@@ -628,7 +642,7 @@ export default function App() {
       <div className="sm:hidden px-3 py-3">
         {mobileTab === 'routine'  && <ArielDashboard breadth={breadth} stageDist={stageDist} industryGroupData={industryGroupData} stocksByTicker={stocksByTicker || {}} onGroupClick={handleGroupClick} />}
         {mobileTab === 'ariel'   && <ArielBreadthTable rows={arielRows} breadth={breadth} loading={arielLoading} />}
-        {mobileTab === 'monitor'  && breadth && <MarketMonitor breadth={breadth} stocksByTicker={stocksByTicker || {}} hotThemeData={hotThemeData || []} onThemeClick={handleHotThemeClick} />}
+        {mobileTab === 'monitor'  && breadth && <MarketMonitor breadth={breadth} stocksByTicker={stocksByTicker || {}} hotThemeData={hotThemeData || []} onThemeClick={handleHotThemeClick} onSectorClick={handleMonitorSectorClick} onEtfClick={handleMonitorEtfClick} onClip={onClip} />}
         {mobileTab === 'rs'       && <LeadersLaggards stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} onClip={onClip} />}
         {mobileTab === 'breadth'  && breadth && <MarketBreadth data={breadth} onFilterClick={handleBreadthFilter} />}
         {mobileTab === 'stage'   && stageDist && stageHistory && (

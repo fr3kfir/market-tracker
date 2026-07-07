@@ -21,7 +21,9 @@ const TIMEFRAMES = [
   { key: 'w1',    label: '1W' },
   { key: 'm1',    label: '1M' },
   { key: 'm3',    label: '3M' },
+  { key: 'm6',    label: '6M' },
   { key: 'ytd',   label: 'YTD' },
+  { key: 'y1',    label: '1Y' },
 ];
 
 function PerfBadge({ value, isActive }) {
@@ -243,7 +245,7 @@ export default function LeadersView({ name, stocks, onBack, historyLoading, onCl
 
         {!hasHistory && !historyLoading && (
           <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', marginTop: 12 }}>
-            Historical performance (1W/1M/3M/YTD) will appear after first data load
+            Historical performance (1W/1M/3M/6M/YTD/1Y) will appear after first data load
           </p>
         )}
       </div>

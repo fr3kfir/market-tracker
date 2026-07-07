@@ -425,6 +425,8 @@ export async function enrichWithHistory(stocks) {
     const w1price = closes[Math.max(0, closes.length - 6)];
     const m1price = closes[Math.max(0, closes.length - 22)];
     const m3price = closes[Math.max(0, closes.length - 66)];
+    const m6price = closes[Math.max(0, closes.length - 126)];
+    const y1price = closes[0]; // range is 1y, so first close ≈ one year ago
     const timestamps = hist.timestamps || [];
     const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
     const ytdIdx = timestamps.findIndex(t => t >= yearStart);
@@ -434,7 +436,9 @@ export async function enrichWithHistory(stocks) {
       w1: pct(w1price, last),
       m1: pct(m1price, last),
       m3: pct(m3price, last),
+      m6: pct(m6price, last),
       ytd: pct(ytdPrice, last),
+      y1: pct(y1price, last),
     };
   });
 }
