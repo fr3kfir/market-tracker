@@ -17,19 +17,21 @@ npm run dev
 
 `server.js` loads `.env` automatically. `.env` is gitignored — never commit it.
 
-### Production (Vercel)
+### Production — Vercel
 
 1. Vercel dashboard → your project → **Settings → Environment Variables**
 2. Add `ANTHROPIC_API_KEY` = your key (Production + Preview)
 3. **Redeploy** — env var changes only apply to new deployments.
 
+### Production — Netlify
+
+1. Netlify dashboard → your site → **Site configuration → Environment variables**
+2. Add `ANTHROPIC_API_KEY` = your key
+3. **Redeploy** the site.
+
 Once the key is set, the Monitor tab replaces the
 "AI Market Brief is off" notice with a live, AI-generated brief
 (refreshed every 15 minutes, cached server-side).
-
-> Note: if you deploy to Netlify instead, `/api/market-brief` is not routed
-> (only `quotes`/`history` have Netlify functions) — the brief currently works
-> on Vercel or the local Express server.
 
 ---
 
