@@ -72,7 +72,12 @@ async function generateBrief() {
     thinking: { type: 'adaptive' },
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: `Recent market headlines:\n\n${headlineText}` }],
-    output_config: { format: { type: 'json_schema', schema: BRIEF_SCHEMA } },
+    output_config: {
+      // Medium effort keeps generation well under Vercel's 60s function limit
+      // while staying plenty for a 2-3 paragraph news summary.
+      effort: 'medium',
+      format: { type: 'json_schema', schema: BRIEF_SCHEMA },
+    },
   });
 
   if (response.stop_reason === 'refusal') throw new Error('Model declined the request');
