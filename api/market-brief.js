@@ -67,7 +67,7 @@ async function generateBrief() {
 
   const response = await anthropic.messages.create({
     model: 'claude-opus-4-8',
-    max_tokens: 2000,
+    max_tokens: 4000,
     thinking: { type: 'adaptive' },
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: `Recent market headlines:\n\n${headlineText}` }],

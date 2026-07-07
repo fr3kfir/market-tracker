@@ -1,5 +1,18 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+
+// Load .env (KEY=value lines) so ANTHROPIC_API_KEY works in local dev.
+// Real env vars always win; missing file is fine.
+try {
+  for (const line of fs.readFileSync(new URL('.env', import.meta.url), 'utf8').split('\n')) {
+    if (line.trim().startsWith('#')) continue;
+    const m = line.match(/^\s*([\w.]+)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) {
+      process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+    }
+  }
+} catch { /* no .env file */ }
 
 const app = express();
 app.use(cors());
