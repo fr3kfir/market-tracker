@@ -1,8 +1,8 @@
+/* Fonts (Inter, JetBrains Mono) are loaded via <link> tags in index.html —
+   a CSS @import here must precede @tailwind and blocks rendering. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
