@@ -390,6 +390,21 @@ export const SECTOR_ETFS = [
   { sym: 'SPY',  name: 'S&P 500' },
 ];
 
+// Monitor tab: sector ETF symbol → SECTOR_STOCKS key, for click-through drilldown
+export const SECTOR_ETF_TO_SECTOR = {
+  XLK:  'Technology',
+  XLF:  'Financials',
+  XLV:  'Healthcare',
+  XLE:  'Energy',
+  XLI:  'Industrials',
+  XLY:  'Consumer Discretionary',
+  XLP:  'Consumer Staples',
+  XLU:  'Utilities',
+  XLB:  'Materials',
+  XLRE: 'Real Estate',
+  XLC:  'Communication Services',
+};
+
 export const HEAVYWEIGHTS = ['META', 'GOOGL', 'AAPL', 'AMZN', 'MAGS', 'MSFT', 'TSLA', 'NVDA'];
 
 // ETF symbols added to the live quote fetch just for the Monitor tab

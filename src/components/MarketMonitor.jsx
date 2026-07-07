@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { SECTOR_ETFS, HEAVYWEIGHTS, THEME_ETFS, HOT_THEMES, MONITOR_ETF_SYMBOLS } from '../data/stockUniverse';
+import { SECTOR_ETFS, HEAVYWEIGHTS, THEME_ETFS, HOT_THEMES, MONITOR_ETF_SYMBOLS, SECTOR_ETF_TO_SECTOR } from '../data/stockUniverse';
+import TickerInfoPopup from './TickerInfoPopup';
 
 // Deepvue-style palette: blue = strength, pink = weakness
 const BLUE = '#3b82f6';
@@ -205,8 +206,9 @@ function MarketBrief() {
   );
 }
 
-export default function MarketMonitor({ breadth, stocksByTicker, hotThemeData, onThemeClick }) {
+export default function MarketMonitor({ breadth, stocksByTicker, hotThemeData, onThemeClick, onSectorClick, onEtfClick, onClip }) {
   const [themeTf, setThemeTf] = useState('d1');
+  const [popupStock, setPopupStock] = useState(null);
 
   // Stage counts over the live stock universe (ETFs excluded)
   const stageCounts = useMemo(() => {
@@ -285,7 +287,12 @@ export default function MarketMonitor({ breadth, stocksByTicker, hotThemeData, o
           </div>
         </Panel>
         <Panel title="Heavyweights">
-          {heavyweights.rows.map(r => <BarRow key={r.label} {...r} max={heavyweights.max} />)}
+          {heavyweights.rows.map(r => (
+            <BarRow
+              key={r.label} {...r} max={heavyweights.max}
+              onClick={stocksByTicker?.[r.label] ? () => setPopupStock(stocksByTicker[r.label]) : undefined}
+            />
+          ))}
         </Panel>
       </div>
 
@@ -317,10 +324,20 @@ export default function MarketMonitor({ breadth, stocksByTicker, hotThemeData, o
       {/* Col 3 — Sectors + Thematic ETFs */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Panel title="Sectors">
-          {sectors.rows.map(r => <BarRow key={r.label} {...r} max={sectors.max} />)}
+          {sectors.rows.map(r => (
+            <BarRow
+              key={r.label} {...r} max={sectors.max}
+              onClick={onSectorClick && SECTOR_ETF_TO_SECTOR[r.label] ? () => onSectorClick(r.label) : undefined}
+            />
+          ))}
         </Panel>
         <Panel title="Thematic ETFs">
-          {thematicEtfs.rows.map(r => <BarRow key={r.label} {...r} max={thematicEtfs.max} />)}
+          {thematicEtfs.rows.map(r => (
+            <BarRow
+              key={r.label} {...r} max={thematicEtfs.max}
+              onClick={onEtfClick ? () => onEtfClick(r.label) : undefined}
+            />
+          ))}
         </Panel>
       </div>
 
@@ -331,9 +348,24 @@ export default function MarketMonitor({ breadth, stocksByTicker, hotThemeData, o
           <div style={{ fontSize: 9.5, color: 'var(--text-faint)', marginBottom: 6 }}>
             Top movers with ≥ $25M avg daily dollar volume
           </div>
-          {liquidLeaders.rows.map(r => <BarRow key={r.label} {...r} max={liquidLeaders.max} />)}
+          {liquidLeaders.rows.map(r => (
+            <BarRow
+              key={r.label} {...r} max={liquidLeaders.max}
+              onClick={stocksByTicker?.[r.label] ? () => setPopupStock(stocksByTicker[r.label]) : undefined}
+            />
+          ))}
         </Panel>
       </div>
+
+      {popupStock && (
+        <TickerInfoPopup
+          ticker={popupStock.ticker}
+          stock={popupStock}
+          onClose={() => setPopupStock(null)}
+          allStocks={Object.values(stocksByTicker || {})}
+          onClip={onClip}
+        />
+      )}
     </div>
   );
 }
