@@ -214,14 +214,16 @@ export default function EarningsCalendar({ stocksByTicker, onClip }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [popupStock, setPopupStock] = useState(null);
 
-  // Date → stocks index, sorted by RS
+  // Date → stocks index, biggest/most recognizable companies first (market cap, then RS)
   const byDate = useMemo(() => {
     const map = {};
     Object.values(stocksByTicker).forEach(s => {
       if (!s.earningsDate) return;
       (map[s.earningsDate] ||= []).push(s);
     });
-    Object.values(map).forEach(arr => arr.sort((a, b) => (b.rs || 0) - (a.rs || 0)));
+    Object.values(map).forEach(arr =>
+      arr.sort((a, b) => (b.marketCapB || 0) - (a.marketCapB || 0) || (b.rs || 0) - (a.rs || 0))
+    );
     return map;
   }, [stocksByTicker]);
 
