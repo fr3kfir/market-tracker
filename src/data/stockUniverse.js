@@ -92,6 +92,8 @@ export const SECTOR_STOCKS = {
     'W','ETSY','CPNG','SE','JD','PDD','MELI','CHWY','CARG',
     // Auto
     'AN','KMX','PAG','GPC','LKQ','DORM','ALSN',
+    // Home products / Appliances
+    'SN','WSM','RH','TPX','MHK','WHR','YETI','LZB','ARHS',
   ],
   Industrials: [
     // Defense / Aerospace
@@ -250,6 +252,7 @@ export const INDUSTRY_GROUPS = [
   { name: 'Leisure / Travel',       sector: 'Consumer Discretionary', tickers: ['ABNB','BKNG','HLT','MAR','CCL','RCL','NCLH','EXPE','VAC','TNL','TRIP','HGV','IHG','WH'] },
   { name: 'Auto Parts / Dealers',   sector: 'Consumer Discretionary', tickers: ['AZO','ORLY','AAP','AN','KMX','PAG','GPC','LKQ','DORM','ALSN','APTV','GT'] },
   { name: 'Footwear / Athleisure',  sector: 'Consumer Discretionary', tickers: ['NKE','LULU','ONON','DECK','BIRK','SKX','CROX','UAA','BOOT','GOOS','COLM','VFC','RL'] },
+  { name: 'Home / Appliances',      sector: 'Consumer Discretionary', tickers: ['SN','WSM','RH','TPX','MHK','WHR','YETI','LZB','ARHS'] },
   // ── Industrials ──
   { name: 'Aerospace / Defense',    sector: 'Industrials',            tickers: ['LMT','RTX','NOC','GD','BA','HII','TDG','HEI','TXT','DRS','BWXT','MOOG','AXON','HEICO'] },
   { name: 'Defense — Growth',       sector: 'Industrials',            tickers: ['AVAV','RKLB','KTOS','MOOG','LDOS','SAIC','CACI','VSE','MRCY','DRS','OSIS','PL','AXON','ASTS'] },
