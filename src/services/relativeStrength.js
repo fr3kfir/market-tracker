@@ -59,6 +59,12 @@ function returnOver(closes, days) {
   return from ? Math.round(((closes[n - 1] - from) / from) * 1000) / 10 : null;
 }
 
+function returnFromIndex(closes, idx) {
+  const from = closes[idx];
+  const to = closes[closes.length - 1];
+  return (from && to) ? Math.round(((to - from) / from) * 1000) / 10 : null;
+}
+
 // ── 10-minute cache (same TTL policy as marketData's ETF history cache) ──
 let _cache = null;
 let _cacheTime = 0;
@@ -105,6 +111,11 @@ export async function fetchRelativeStrengthData(allSymbols) {
         ? Math.round((r - spyReturns[key]) * 10) / 10
         : null;
     });
+
+    // Absolute YTD return (first close on/after Jan 1 of current year)
+    const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
+    const ytdIdx = s.ts.findIndex(t => t >= yearStart);
+    entry.ytd = returnFromIndex(s.closes, ytdIdx >= 0 ? ytdIdx : 0);
 
     // RS line (stock / SPY) — distance from its 3-month high.
     // Ariel: RS line making new highs BEFORE price = leader tell.

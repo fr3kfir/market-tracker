@@ -1,4 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from '../data/stockUniverse';
+import { fetchRelativeStrengthData } from '../services/relativeStrength';
 
 const TIMEFRAMES = [
   { key: 'd1',  label: 'Today' },
@@ -7,6 +9,12 @@ const TIMEFRAMES = [
   { key: 'm3',  label: '3M'   },
   { key: 'ytd', label: 'YTD'  },
 ];
+
+// Per-stock field to read for each selected timeframe — 'change' is today's
+// intraday %, everything else comes from relativeStrength's per-ticker history.
+const STOCK_TF_FIELD = { d1: 'change', w1: 'r1w', m1: 'r1m', m3: 'r3m', ytd: 'ytd' };
+
+const UNIVERSE_SYMBOLS = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])];
 
 const POS_COLOR = '#3b82f6';
 const NEG_COLOR = '#ec4899';
@@ -39,11 +47,13 @@ function StockBar({ ticker, val, maxAbs }) {
 }
 
 function ThemeCard({ theme, stocks, themeAgg, selectedTf, onThemeClick }) {
-  const sortedStocks = useMemo(() =>
-    [...stocks].sort((a, b) => b.change - a.change),
-  [stocks]);
+  const fieldKey = STOCK_TF_FIELD[selectedTf] || 'change';
 
-  const maxAbs = Math.max(...sortedStocks.map(s => Math.abs(s.change)), 0.1);
+  const sortedStocks = useMemo(() =>
+    [...stocks].sort((a, b) => (b[fieldKey] ?? -Infinity) - (a[fieldKey] ?? -Infinity)),
+  [stocks, fieldKey]);
+
+  const maxAbs = Math.max(...sortedStocks.map(s => Math.abs(s[fieldKey] ?? 0)), 0.1);
   const aggVal = themeAgg?.[selectedTf] ?? 0;
   const isToday = selectedTf === 'd1';
 
@@ -83,7 +93,14 @@ function ThemeCard({ theme, stocks, themeAgg, selectedTf, onThemeClick }) {
       {/* Stock bars */}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {sortedStocks.map(s => (
-          <StockBar key={s.ticker} ticker={s.ticker} val={s.change} maxAbs={maxAbs} />
+          s[fieldKey] != null
+            ? <StockBar key={s.ticker} ticker={s.ticker} val={s[fieldKey]} maxAbs={maxAbs} />
+            : (
+              <div key={s.ticker} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '1.5px 0' }}>
+                <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', width: 48, flexShrink: 0 }}>{s.ticker}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>—</span>
+              </div>
+            )
         ))}
       </div>
     </div>
@@ -92,6 +109,20 @@ function ThemeCard({ theme, stocks, themeAgg, selectedTf, onThemeClick }) {
 
 export default function ThemeDashboard({ hotThemes, hotThemeData, stocksByTicker, onThemeClick }) {
   const [selectedTf, setSelectedTf] = useState('d1');
+  const [rsByTicker, setRsByTicker] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchRelativeStrengthData(UNIVERSE_SYMBOLS);
+        if (!cancelled) setRsByTicker(data.byTicker || {});
+      } catch (e) {
+        console.error('Theme per-stock history error:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const aggMap = useMemo(() => {
     const m = {};
@@ -113,10 +144,14 @@ export default function ThemeDashboard({ hotThemes, hotThemeData, stocksByTicker
     (hotThemes || []).forEach(theme => {
       m[theme.name] = (theme.tickers || [])
         .map(t => stocksByTicker?.[t])
-        .filter(Boolean);
+        .filter(Boolean)
+        .map(s => {
+          const rs = rsByTicker[s.ticker];
+          return { ...s, r1w: rs?.r1w ?? null, r1m: rs?.r1m ?? null, r3m: rs?.r3m ?? null, ytd: rs?.ytd ?? null };
+        });
     });
     return m;
-  }, [hotThemes, stocksByTicker]);
+  }, [hotThemes, stocksByTicker, rsByTicker]);
 
   return (
     <div>
