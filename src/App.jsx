@@ -17,6 +17,7 @@ import ClipboardPanel from './components/ClipboardPanel';
 import SecFilings from './components/SecFilings';
 import EarningsCalendar from './components/EarningsCalendar';
 import HighLowScanner from './components/HighLowScanner';
+import Positioning from './components/Positioning';
 import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS, SECTOR_ETF_TO_SECTOR } from './data/stockUniverse';
 import { fetchArielBreadthData } from './services/arielBreadth';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
@@ -171,6 +172,7 @@ const TABS = [
   { key: 'themes',   label: 'Themes' },
   { key: 'screener', label: 'Screener' },
   { key: 'highs',    label: 'Highs / Lows' },
+  { key: 'positioning', label: 'Positioning' },
   { key: 'earnings', label: 'Earnings' },
   { key: 'sec',      label: 'SEC' },
   { key: 'search',   label: 'Search' },
@@ -615,6 +617,9 @@ export default function App() {
         {desktopTab === 'highs' && (
           <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />
         )}
+        {desktopTab === 'positioning' && (
+          <Positioning />
+        )}
         {desktopTab === 'earnings' && (
           <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />
         )}
@@ -660,6 +665,7 @@ export default function App() {
         )}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
+        {mobileTab === 'positioning' && <Positioning />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
         {mobileTab === 'sec'      && <SecFilings />}
         {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}

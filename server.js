@@ -131,10 +131,12 @@ app.get('/api/news', async (req, res) => {
 import secHandler         from './api/sec.js';
 import secPreviewHandler  from './api/sec-preview.js';
 import marketBriefHandler from './api/market-brief.js';
+import cotHandler         from './api/cot.js';
 
 app.get('/api/sec',          (req, res) => secHandler(req, res));
 app.get('/api/sec-preview',  (req, res) => secPreviewHandler(req, res));
 app.get('/api/market-brief', (req, res) => marketBriefHandler(req, res));
+app.get('/api/cot',          (req, res) => cotHandler(req, res));
 
 const PORT = 3001;
 app.listen(PORT, () => console.log(`📡 Market proxy → http://localhost:${PORT}`));
