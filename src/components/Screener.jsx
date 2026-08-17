@@ -36,6 +36,27 @@ const GROUP_RANK_OPTIONS = [
   { label: 'Top 40', value: 40  },
 ];
 
+// ── Group Rank basis — which timeframe decides which groups are "leading" ──
+const GROUP_RANK_BASIS_OPTIONS = [
+  { label: 'Today (RS)', value: 'rs', metricLabel: 'RS' },
+  { label: '30 Days',    value: 'm1', metricLabel: '30D' },
+  { label: '3 Months',   value: 'm3', metricLabel: '3M' },
+];
+
+// Average a numeric field across stocks, ignoring missing values
+function avgOf(stocks, key) {
+  const vals = stocks.map(s => s[key]).filter(v => v != null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+// Rank a list of {name, [key]} objects by key descending → { name: rank }
+function rankByKey(list, key) {
+  const ranks = {};
+  [...list].filter(g => g[key] != null).sort((a, b) => b[key] - a[key])
+    .forEach((g, i) => { ranks[g.name] = i + 1; });
+  return ranks;
+}
+
 // ── Presets ─────────────────────────────────────────────────────────────
 const PRESETS = [
   {
@@ -79,6 +100,20 @@ const PRESETS = [
     desc:  'Top 20 Groups · S2 · RS ≥ 75',
     filters: { stages: ['S2'], rsMin: 75 },
     groupRankMax: 20,
+  },
+  {
+    label: '🏔️ Leading Groups — 30D',
+    desc:  'Top 20 Groups ranked by 30-day performance — the strongest groups over the last month',
+    filters: {},
+    groupRankMax: 20,
+    groupRankBasis: 'm1',
+  },
+  {
+    label: '🏔️ Leading Groups — 3M',
+    desc:  'Top 20 Groups ranked by 3-month performance — the strongest groups over the last quarter',
+    filters: {},
+    groupRankMax: 20,
+    groupRankBasis: 'm3',
   },
   {
     label: '💪 High RS (80+)',
@@ -208,11 +243,21 @@ function VsSpyCell({ value }) {
   );
 }
 
-function GroupRankBadge({ rank, name }) {
+// Format a group's ranking metric for tooltips: "RS 78" or "30D +18.4%"
+function fmtGroupMetric(metric, basisLabel) {
+  if (metric == null || !basisLabel) return '';
+  return basisLabel === 'RS'
+    ? `${basisLabel} ${Math.round(metric)}`
+    : `${basisLabel} ${metric >= 0 ? '+' : ''}${metric.toFixed(1)}%`;
+}
+
+function GroupRankBadge({ rank, name, metric, basisLabel }) {
   if (!rank) return null;
   const color = rank <= 10 ? '#f59e0b' : rank <= 20 ? '#34d399' : rank <= 40 ? '#3b82f6' : '#94a3b8';
+  const metricStr = fmtGroupMetric(metric, basisLabel);
+  const title = metricStr ? `${name} · ${metricStr}` : name;
   return (
-    <span title={name} style={{
+    <span title={title} style={{
       fontSize: 10, fontFamily: 'monospace', fontWeight: 700, color,
       background: color + '18', padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap',
     }}>#{rank}</span>
@@ -299,7 +344,7 @@ function SortTh({ label, col, sortKey, sortDir, onSort, align = 'right', title }
   );
 }
 
-function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, showMiniCharts, chartRange }) {
+function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, groupMetric, groupBasisLabel, showMiniCharts, chartRange }) {
   const [hover, setHover] = useState(false);
   return (
     <tr
@@ -330,7 +375,7 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, s
       <td style={{ padding: '7px 10px', whiteSpace: 'nowrap' }}>
         {groupRank ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <GroupRankBadge rank={groupRank} name={groupName} />
+            <GroupRankBadge rank={groupRank} name={groupName} metric={groupMetric} basisLabel={groupBasisLabel} />
             <span style={{ fontSize: 10, color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>{groupName}</span>
           </div>
         ) : <span style={{ color: 'var(--text-faint)', fontSize: 10 }}>—</span>}
@@ -372,7 +417,7 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, s
 // ── Chart Card (Finviz-style) ────────────────────────────────────────────
 // Compact header row: ticker, change%, RS, stage, group rank, EXPAND button.
 // Then a full TradingView advanced chart (candlesticks + MA50 + MA200 + Volume).
-function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupName }) {
+function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupName, groupMetric, groupBasisLabel }) {
   const change = stock.change ?? 0;
   const changeColor = change >= 0 ? '#34d399' : '#f87171';
 
@@ -429,7 +474,7 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
             color: groupRank <= 10 ? '#f59e0b' : groupRank <= 20 ? '#34d399' : '#3b82f6',
             background: (groupRank <= 10 ? '#f59e0b' : groupRank <= 20 ? '#34d399' : '#3b82f6') + '18',
             padding: '1px 4px', borderRadius: 3, flexShrink: 0,
-          }} title={groupName}>#{groupRank}</span>
+          }} title={fmtGroupMetric(groupMetric, groupBasisLabel) ? `${groupName} · ${fmtGroupMetric(groupMetric, groupBasisLabel)}` : groupName}>#{groupRank}</span>
         )}
         {/* Spacer */}
         <div style={{ flex: 1 }} />
@@ -506,6 +551,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
   const [activeTab, setActiveTab]       = useState('Descriptive');
   const [filters, setFilters]           = useState({ ...DEFAULT_FILTERS });
   const [groupRankMax, setGroupRankMax] = useState(null);
+  const [groupRankBasis, setGroupRankBasis] = useState('rs'); // 'rs' | 'm1' | 'm3' — which timeframe ranks groups
   const [sortKey, setSortKey]           = useState('rs');
   const [sortDir, setSortDir]           = useState('desc');
   const [activePreset, setActivePreset] = useState(null);
@@ -519,21 +565,6 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
     try { return JSON.parse(localStorage.getItem('mp-saved-scans') || '[]'); } catch { return []; }
   });
   const [copyTick, setCopyTick]         = useState(false);
-
-  // Build ticker→group lookup
-  const tickerToGroupInfo = useMemo(() => {
-    const map = {};
-    industryGroupData.forEach(g => {
-      const def = INDUSTRY_GROUPS.find(ig => ig.name === g.name);
-      if (def) def.tickers.forEach(t => { if (!map[t]) map[t] = { rank: g.rank, name: g.name }; });
-    });
-    return map;
-  }, [industryGroupData]);
-
-  const tickerGroupRank = useMemo(
-    () => Object.fromEntries(Object.entries(tickerToGroupInfo).map(([t, g]) => [t, g.rank])),
-    [tickerToGroupInfo]
-  );
 
   // Enrich with history-derived metrics (ADR%, 1W/1M/3M returns) — shared
   // 10-minute cache with the Leaders/Laggards tab, so this is one fetch app-wide.
@@ -562,6 +593,62 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       m3: s.m3 ?? h.r3m ?? null,
     };
   }), [stocksByTicker, histData]);
+
+  // Per-group 30D/3M performance — prefer the ETF-proxy figure already computed
+  // in industryGroupData; fall back to the average of member stocks' own
+  // history-derived returns for groups without a proxy ETF.
+  const groupPerf = useMemo(() => {
+    const byTicker = Object.fromEntries(allStocks.map(s => [s.ticker, s]));
+    return INDUSTRY_GROUPS.map(def => {
+      const existing = industryGroupData.find(g => g.name === def.name);
+      const stocks = def.tickers.map(t => byTicker[t]).filter(Boolean);
+      return {
+        name: def.name,
+        rs: existing?.avgRS ?? avgOf(stocks, 'rs'),
+        m1: existing?.m1 ?? avgOf(stocks, 'm1'),
+        m3: existing?.m3 ?? avgOf(stocks, 'm3'),
+      };
+    });
+  }, [industryGroupData, allStocks]);
+
+  // Group ranks per basis — 'rs' reuses the RS-based rank already computed
+  // app-wide; 'm1'/'m3' rank groups by their 30-day / 3-month performance,
+  // so "leading groups" can mean today's strength or sustained momentum.
+  const ranksByBasis = useMemo(() => ({
+    rs: Object.fromEntries(industryGroupData.map(g => [g.name, g.rank])),
+    m1: rankByKey(groupPerf, 'm1'),
+    m3: rankByKey(groupPerf, 'm3'),
+  }), [industryGroupData, groupPerf]);
+
+  const groupPerfByName = useMemo(
+    () => Object.fromEntries(groupPerf.map(g => [g.name, g])),
+    [groupPerf]
+  );
+
+  // Build ticker→group lookup for the currently selected rank basis. When a
+  // ticker belongs to multiple groups, keep its best (lowest-numbered) rank.
+  const tickerToGroupInfo = useMemo(() => {
+    const ranks = ranksByBasis[groupRankBasis] || {};
+    const basisMeta = GROUP_RANK_BASIS_OPTIONS.find(b => b.value === groupRankBasis);
+    const orderedDefs = INDUSTRY_GROUPS
+      .filter(def => ranks[def.name] != null)
+      .sort((a, b) => ranks[a.name] - ranks[b.name]);
+    const map = {};
+    orderedDefs.forEach(def => {
+      const rank = ranks[def.name];
+      const metric = groupPerfByName[def.name]?.[groupRankBasis];
+      def.tickers.forEach(t => {
+        if (!map[t]) map[t] = { rank, name: def.name, metric, basisLabel: basisMeta?.metricLabel };
+      });
+    });
+    return map;
+  }, [ranksByBasis, groupRankBasis, groupPerfByName]);
+
+  const tickerGroupRank = useMemo(
+    () => Object.fromEntries(Object.entries(tickerToGroupInfo).map(([t, g]) => [t, g.rank])),
+    [tickerToGroupInfo]
+  );
+
   const filtered  = useMemo(
     () => applyFilters(allStocks, filters, groupRankMax, tickerGroupRank),
     [allStocks, filters, groupRankMax, tickerGroupRank]
@@ -593,20 +680,21 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
 
   const applyPreset = (preset, idx) => {
     if (activePreset === idx) {
-      setFilters({ ...DEFAULT_FILTERS }); setGroupRankMax(null); setActivePreset(null);
+      setFilters({ ...DEFAULT_FILTERS }); setGroupRankMax(null); setGroupRankBasis('rs'); setActivePreset(null);
     } else {
       setFilters({ ...DEFAULT_FILTERS, ...preset.filters });
       setGroupRankMax(preset.groupRankMax ?? null);
+      setGroupRankBasis(preset.groupRankBasis ?? 'rs');
       setActivePreset(idx);
     }
     setPage(0);
   };
 
-  const resetFilters = () => { setFilters({ ...DEFAULT_FILTERS }); setGroupRankMax(null); setActivePreset(null); setPage(0); };
+  const resetFilters = () => { setFilters({ ...DEFAULT_FILTERS }); setGroupRankMax(null); setGroupRankBasis('rs'); setActivePreset(null); setPage(0); };
 
   // Save current scan
   const handleSaveScan = (name) => {
-    const scan = { name, filters: { ...filters }, groupRankMax, label: `💾 ${name}` };
+    const scan = { name, filters: { ...filters }, groupRankMax, groupRankBasis, label: `💾 ${name}` };
     const next = [...savedScans, scan];
     setSavedScans(next);
     localStorage.setItem('mp-saved-scans', JSON.stringify(next));
@@ -622,6 +710,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
   const applySavedScan = (scan) => {
     setFilters({ ...DEFAULT_FILTERS, ...scan.filters });
     setGroupRankMax(scan.groupRankMax ?? null);
+    setGroupRankBasis(scan.groupRankBasis ?? 'rs');
     setActivePreset(null);
     setPage(0);
   };
@@ -635,7 +724,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
     });
   };
 
-  const hasActiveFilters = groupRankMax != null || Object.entries(filters).some(([, v]) =>
+  const hasActiveFilters = groupRankMax != null || groupRankBasis !== 'rs' || Object.entries(filters).some(([, v]) =>
     Array.isArray(v) ? v.length > 0 : v !== ''
   );
 
@@ -696,7 +785,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       </div>
 
       {/* ── Group Rank filter ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>GROUP RANK:</span>
         {GROUP_RANK_OPTIONS.map(opt => (
           <button key={String(opt.value)} onClick={() => { setGroupRankMax(opt.value); setPage(0); }} style={{
@@ -705,6 +794,17 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
             borderColor: groupRankMax === opt.value ? '#f59e0b' : 'var(--border)',
             background:  groupRankMax === opt.value ? 'rgba(245,158,11,0.15)' : 'transparent',
             color:       groupRankMax === opt.value ? '#f59e0b' : 'var(--text-muted)',
+          }}>{opt.label}</button>
+        ))}
+
+        <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', marginLeft: 10 }} title="Which timeframe decides which groups are 'leading'">BASED ON:</span>
+        {GROUP_RANK_BASIS_OPTIONS.map(opt => (
+          <button key={opt.value} onClick={() => { setGroupRankBasis(opt.value); setPage(0); }} style={{
+            padding: '3px 10px', fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
+            borderRadius: 20, border: '1px solid', cursor: 'pointer', transition: 'all 0.12s',
+            borderColor: groupRankBasis === opt.value ? '#a78bfa' : 'var(--border)',
+            background:  groupRankBasis === opt.value ? 'rgba(167,139,250,0.15)' : 'transparent',
+            color:       groupRankBasis === opt.value ? '#a78bfa' : 'var(--text-muted)',
           }}>{opt.label}</button>
         ))}
       </div>
@@ -893,7 +993,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                     </th>
                   )}
                   <th style={{ padding: '6px 10px', fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'monospace', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</th>
-                  <SortTh label="Group"     col="groupRank"      align="left" title="Industry Group Rank" {...thProps} />
+                  <SortTh label="Group"     col="groupRank"      align="left" title={`Industry Group Rank — based on ${GROUP_RANK_BASIS_OPTIONS.find(b => b.value === groupRankBasis)?.label}`} {...thProps} />
                   <SortTh label="Price"     col="price"          {...thProps} />
                   <SortTh label="Today"     col="change"         {...thProps} />
                   <SortTh label="vs SPY"    col="relVsMarket"    title="Today's change minus SPY's change — positive = outperforming the market" {...thProps} />
@@ -917,7 +1017,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                   return (
                     <StockRow key={stock.ticker} stock={stock} i={i}
                       onTickerClick={setPopupStock} cs={clipState(stock.ticker)} onClip={onClip}
-                      groupRank={gi?.rank} groupName={gi?.name}
+                      groupRank={gi?.rank} groupName={gi?.name} groupMetric={gi?.metric} groupBasisLabel={gi?.basisLabel}
                       showMiniCharts={showMiniCharts} chartRange={chartRange} />
                   );
                 })}
@@ -952,7 +1052,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                   return (
                     <ChartCard key={stock.ticker} stock={stock} range={chartRange}
                       cs={clipState(stock.ticker)} onClip={onClip} onTickerClick={setPopupStock}
-                      groupRank={gi?.rank} groupName={gi?.name} />
+                      groupRank={gi?.rank} groupName={gi?.name} groupMetric={gi?.metric} groupBasisLabel={gi?.basisLabel} />
                   );
                 })}
               </div>
