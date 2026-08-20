@@ -20,6 +20,24 @@ function RSBadge({ rs }) {
   );
 }
 
+// ── Overcrowded badge ───────────────────────────────────────────────────────
+// Ariel's crowded-trade tell: a name already at the top of RS (everyone
+// already sees it as a leader) getting chased by abnormal volume — poor
+// risk/reward for a fresh entry since the move is no longer a secret.
+const OVERCROWDED_RS = 97;
+const OVERCROWDED_VOL_BUZZ = 2.5;
+function isOvercrowded(s) {
+  return s.rs >= OVERCROWDED_RS && s.volBuzz >= OVERCROWDED_VOL_BUZZ;
+}
+function OvercrowdedBadge() {
+  return (
+    <span title={`RS ≥ ${OVERCROWDED_RS} and Vol Buzz ≥ ${OVERCROWDED_VOL_BUZZ}x — already a well-known leader getting chased by abnormal volume`} style={{
+      fontSize: 9, padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontWeight: 700,
+      background: '#f8717122', border: '1px solid #f8717155', color: '#f87171', whiteSpace: 'nowrap',
+    }}>⚠ CROWDED</span>
+  );
+}
+
 // ── Stage badge ─────────────────────────────────────────────────────────────
 function StageBadge({ stage }) {
   const colors = { S1: '#94a3b8', S2: '#3b82f6', S3: '#f59e0b', S4: '#f87171' };
@@ -87,6 +105,7 @@ export default function ArielDashboard({ breadth, stageDist, industryGroupData, 
         ...s,
         distFromHigh: Math.round(((s.high52 - s.price) / s.high52) * 100 * 10) / 10,
         groupName: tickerToGroup[s.ticker] || '—',
+        overcrowded: isOvercrowded(s),
       }))
       .sort((a, b) => b.rs - a.rs)
       .slice(0, 20);
@@ -191,7 +210,7 @@ export default function ArielDashboard({ breadth, stageDist, industryGroupData, 
         <SectionHeader
           step="3"
           title="Flat Base Scanner"
-          sub={`Stage 2 · RS ≥ 80 · Within 10% of 52w High · In Top 20 Groups — ${flatBaseCandidates.length} candidates`}
+          sub={`Stage 2 · RS ≥ 80 · Within 10% of 52w High · In Top 20 Groups — ${flatBaseCandidates.length} candidates · ⚠ marks Overcrowded names`}
         />
 
         {flatBaseCandidates.length === 0 ? (
@@ -233,7 +252,10 @@ export default function ArielDashboard({ breadth, stageDist, industryGroupData, 
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '9px 6px' }}>
-                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 12 }}>{s.ticker}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 12 }}>{s.ticker}</span>
+                          {s.overcrowded && <OvercrowdedBadge />}
+                        </div>
                         <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 1 }}>${s.price.toFixed(2)}</div>
                       </td>
                       <td style={{ padding: '9px 6px', textAlign: 'center' }}><RSBadge rs={s.rs} /></td>
@@ -266,6 +288,7 @@ export default function ArielDashboard({ breadth, stageDist, industryGroupData, 
             { color: '#22c55e', label: '0-3% from high — Breakout zone' },
             { color: '#f59e0b', label: '3-7% — Consolidation' },
             { color: '#94a3b8', label: '7-10% — Extended but valid' },
+            { color: '#f87171', label: `⚠ CROWDED — RS ≥ ${OVERCROWDED_RS} & Vol Buzz ≥ ${OVERCROWDED_VOL_BUZZ}x, already a known leader` },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
