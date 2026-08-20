@@ -25,12 +25,28 @@ async function getAuth() {
 }
 
 exports.handler = async (event) => {
-  const { symbols, type, range = '6mo', interval = '1d' } = event.queryStringParameters || {};
+  const { symbols, symbol, type, range = '6mo', interval = '1d' } = event.queryStringParameters || {};
   const HISTORY_INTERVALS = new Set(['1d', '60m', '30m', '15m', '5m', '1wk', '1mo']);
   const iv = HISTORY_INTERVALS.has(interval) ? interval : '1d';
-  if (!symbols) return { statusCode: 400, body: JSON.stringify({ error: 'symbols required' }) };
 
   const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
+
+  if (type === 'profile') {
+    if (!symbol) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'symbol required' }) };
+    try {
+      const { cookieStr, crumb } = await getAuth();
+      const yfHeaders = { 'User-Agent': UA, Cookie: cookieStr, Accept: 'application/json' };
+      const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile&crumb=${encodeURIComponent(crumb)}`;
+      const r = await fetch(url, { headers: yfHeaders });
+      const d = await r.json();
+      const profile = d?.quoteSummary?.result?.[0]?.assetProfile || {};
+      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify({ sector: profile.sector || null, industry: profile.industry || null }) };
+    } catch (err) {
+      return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: err.message }) };
+    }
+  }
+
+  if (!symbols) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'symbols required' }) };
 
   try {
     const { cookieStr, crumb } = await getAuth();

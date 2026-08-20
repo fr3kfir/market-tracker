@@ -229,9 +229,17 @@ export default function StockSearch({ stocksByTicker }) {
         change: Math.round((result.regularMarketChangePercent || 0) * 100) / 100,
         high52, low52, distSma52wHigh,
         sma50, sma200,
-        sector: result.sector || null,
-        industry: result.industry || null,
+        sector: null,
+        industry: null,
       };
+      // Sector/industry live in a separate Yahoo module (assetProfile) —
+      // the quotes endpoint above never carries them.
+      try {
+        const pr = await fetch(`/api/profile?symbol=${encodeURIComponent(result.symbol)}`);
+        const pd = await pr.json();
+        stock.sector = pd?.sector || null;
+        stock.industry = pd?.industry || null;
+      } catch { /* profile lookup is best-effort */ }
       // Also fetch history for w1/m1/m3/ytd
       try {
         const enriched = await enrichWithHistory([stock]);
