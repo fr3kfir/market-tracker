@@ -59,17 +59,18 @@ export async function fetchArielBreadthData(allSymbols) {
     const di1 = di - 1, di5 = di - 5, di10 = di - 10,
           di22 = di - 22, di34 = di - 34, di66 = di - 66;
 
-    let up4 = 0, dn4 = 0;
-    let pos5 = 0, neg5 = 0, pos10 = 0, neg10 = 0;
-    let up25q = 0, dn25q = 0;
-    let up25m = 0, dn25m = 0, up50m = 0, dn50m = 0;
-    let up13_34 = 0, dn13_34 = 0;
-    let above50 = 0, counted = 0;
+    const tickers = {
+      up4: [], dn4: [], pos5: [], neg5: [], pos10: [], neg10: [],
+      up25q: [], dn25q: [], up25m: [], dn25m: [], up50m: [], dn50m: [],
+      up13_34: [], dn13_34: [], above50dma: [],
+    };
+    let counted = 0;
 
     for (let si = 0; si < symbols.length; si++) {
       const price = closes[si][di];
       if (!price) continue;
       counted++;
+      const sym = symbols[si];
 
       const p1  = di1  >= 0 ? closes[si][di1]  : null;
       const p5  = di5  >= 0 ? closes[si][di5]  : null;
@@ -80,31 +81,34 @@ export async function fetchArielBreadthData(allSymbols) {
 
       if (p1) {
         const c = (price - p1) / p1 * 100;
-        if (c >= 4) up4++; if (c <= -4) dn4++;
+        if (c >= 4) tickers.up4.push(sym); if (c <= -4) tickers.dn4.push(sym);
       }
-      if (p5 && di5 >= 0) { const c = (price - p5) / p5 * 100; if (c > 0) pos5++; else if (c < 0) neg5++; }
-      if (p10 && di10 >= 0) { const c = (price - p10) / p10 * 100; if (c > 0) pos10++; else if (c < 0) neg10++; }
-      if (p66 && di66 >= 0) { const c = (price - p66) / p66 * 100; if (c >= 25) up25q++; if (c <= -25) dn25q++; }
+      if (p5 && di5 >= 0) { const c = (price - p5) / p5 * 100; if (c > 0) tickers.pos5.push(sym); else if (c < 0) tickers.neg5.push(sym); }
+      if (p10 && di10 >= 0) { const c = (price - p10) / p10 * 100; if (c > 0) tickers.pos10.push(sym); else if (c < 0) tickers.neg10.push(sym); }
+      if (p66 && di66 >= 0) { const c = (price - p66) / p66 * 100; if (c >= 25) tickers.up25q.push(sym); if (c <= -25) tickers.dn25q.push(sym); }
       if (p22 && di22 >= 0) {
         const c = (price - p22) / p22 * 100;
-        if (c >= 25) up25m++; if (c <= -25) dn25m++;
-        if (c >= 50) up50m++; if (c <= -50) dn50m++;
+        if (c >= 25) tickers.up25m.push(sym); if (c <= -25) tickers.dn25m.push(sym);
+        if (c >= 50) tickers.up50m.push(sym); if (c <= -50) tickers.dn50m.push(sym);
       }
-      if (p34 && di34 >= 0) { const c = (price - p34) / p34 * 100; if (c >= 13) up13_34++; if (c <= -13) dn13_34++; }
+      if (p34 && di34 >= 0) { const c = (price - p34) / p34 * 100; if (c >= 13) tickers.up13_34.push(sym); if (c <= -13) tickers.dn13_34.push(sym); }
       const sm = sma50[si][di];
-      if (sm !== null && price > sm) above50++;
+      if (sm !== null && price > sm) tickers.above50dma.push(sym);
     }
 
-    const ratio5  = neg5  > 0 ? Math.round(pos5  / neg5  * 100) / 100 : (pos5  > 0 ? 9.99 : 1);
-    const ratio10 = neg10 > 0 ? Math.round(pos10 / neg10 * 100) / 100 : (pos10 > 0 ? 9.99 : 1);
+    const ratio5  = tickers.neg5.length  > 0 ? Math.round(tickers.pos5.length  / tickers.neg5.length  * 100) / 100 : (tickers.pos5.length  > 0 ? 9.99 : 1);
+    const ratio10 = tickers.neg10.length > 0 ? Math.round(tickers.pos10.length / tickers.neg10.length * 100) / 100 : (tickers.pos10.length > 0 ? 9.99 : 1);
 
     rows.push({
       date: new Date(ts * 1000), ts,
-      up4, dn4, ratio5, ratio10,
-      up25q, dn25q, up25m, dn25m, up50m, dn50m,
-      up13_34, dn13_34,
-      above50dma: counted > 0 ? Math.round(above50 / counted * 1000) / 10 : 0,
+      up4: tickers.up4.length, dn4: tickers.dn4.length, ratio5, ratio10,
+      up25q: tickers.up25q.length, dn25q: tickers.dn25q.length,
+      up25m: tickers.up25m.length, dn25m: tickers.dn25m.length,
+      up50m: tickers.up50m.length, dn50m: tickers.dn50m.length,
+      up13_34: tickers.up13_34.length, dn13_34: tickers.dn13_34.length,
+      above50dma: counted > 0 ? Math.round(tickers.above50dma.length / counted * 1000) / 10 : 0,
       total: counted,
+      tickers,
     });
   }
 

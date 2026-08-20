@@ -1,24 +1,24 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 const PRIMARY_COLS = [
-  { key: 'up4',     label: 'Stocks\nUp 4%+\nToday',   bull: true  },
-  { key: 'dn4',     label: 'Stocks\nDown 4%+\nToday', bull: false },
-  { key: 'ratio5',  label: '5 Day\nRatio',             bull: true,  isRatio: true },
-  { key: 'ratio10', label: '10 Day\nRatio',            bull: true,  isRatio: true },
+  { key: 'up4',     label: 'Stocks\nUp 4%+\nToday',   full: 'Stocks Up 4%+ Today',      bull: true,  tickersKey: 'up4' },
+  { key: 'dn4',     label: 'Stocks\nDown 4%+\nToday', full: 'Stocks Down 4%+ Today',    bull: false, tickersKey: 'dn4' },
+  { key: 'ratio5',  label: '5 Day\nRatio',             full: '5 Day Ratio',              bull: true,  isRatio: true, upKey: 'pos5',  downKey: 'neg5'  },
+  { key: 'ratio10', label: '10 Day\nRatio',            full: '10 Day Ratio',             bull: true,  isRatio: true, upKey: 'pos10', downKey: 'neg10' },
 ];
 
 const SECONDARY_COLS = [
-  { key: 'up25q',   label: 'Up 25%+\nQuarter',   bull: true  },
-  { key: 'dn25q',   label: 'Down 25%+\nQuarter', bull: false },
-  { key: 'up25m',   label: 'Up 25%+\nMonth',     bull: true  },
-  { key: 'dn25m',   label: 'Down 25%+\nMonth',   bull: false },
-  { key: 'up50m',   label: 'Up 50%+\nMonth',     bull: true  },
-  { key: 'dn50m',   label: 'Down 50%+\nMonth',   bull: false },
-  { key: 'up13_34', label: 'Up 13%+\n34 Days',   bull: true  },
-  { key: 'dn13_34', label: 'Down 13%+\n34 Days', bull: false },
+  { key: 'up25q',   label: 'Up 25%+\nQuarter',   full: 'Up 25%+ Quarter',   bull: true,  tickersKey: 'up25q'   },
+  { key: 'dn25q',   label: 'Down 25%+\nQuarter', full: 'Down 25%+ Quarter', bull: false, tickersKey: 'dn25q'   },
+  { key: 'up25m',   label: 'Up 25%+\nMonth',     full: 'Up 25%+ Month',     bull: true,  tickersKey: 'up25m'   },
+  { key: 'dn25m',   label: 'Down 25%+\nMonth',   full: 'Down 25%+ Month',   bull: false, tickersKey: 'dn25m'   },
+  { key: 'up50m',   label: 'Up 50%+\nMonth',     full: 'Up 50%+ Month',     bull: true,  tickersKey: 'up50m'   },
+  { key: 'dn50m',   label: 'Down 50%+\nMonth',   full: 'Down 50%+ Month',   bull: false, tickersKey: 'dn50m'   },
+  { key: 'up13_34', label: 'Up 13%+\n34 Days',   full: 'Up 13%+ 34 Days',   bull: true,  tickersKey: 'up13_34' },
+  { key: 'dn13_34', label: 'Down 13%+\n34 Days', full: 'Down 13%+ 34 Days', bull: false, tickersKey: 'dn13_34' },
 ];
 
-const EXTRA_COL = { key: 'above50dma', label: '>50dma', bull: true, isPct: true };
+const EXTRA_COL = { key: 'above50dma', label: '>50dma', full: 'Stocks Above 50dma', bull: true, isPct: true, tickersKey: 'above50dma' };
 
 const ALL_DATA_COLS = [...PRIMARY_COLS, ...SECONDARY_COLS, EXTRA_COL];
 
@@ -118,8 +118,86 @@ const TD_BASE = {
   transition: 'background 0.2s',
 };
 
+// ── Ticker list modal — shown when a data cell is clicked ─────────────────
+function TickerChip({ ticker }) {
+  return (
+    <span style={{
+      fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--text)',
+      background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6,
+      padding: '4px 8px',
+    }}>{ticker}</span>
+  );
+}
+
+function TickerListSection({ title, color, tickers }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
+        <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>({tickers.length})</span>
+      </div>
+      {tickers.length === 0 ? (
+        <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'monospace' }}>No stocks</div>
+      ) : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {tickers.map(t => <TickerChip key={t} ticker={t} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TickerListModal({ info, onClose }) {
+  const { col, row } = info;
+  const isRatio = !!col.isRatio;
+  const up   = isRatio ? (row.tickers?.[col.upKey]   ?? []) : (row.tickers?.[col.tickersKey] ?? []);
+  const down = isRatio ? (row.tickers?.[col.downKey] ?? []) : null;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12,
+          maxWidth: 640, width: '100%', maxHeight: '80vh', overflowY: 'auto',
+          boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
+        }}
+      >
+        <div style={{
+          padding: '14px 18px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          position: 'sticky', top: 0, background: 'var(--bg-panel)',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{col.full}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', marginTop: 2 }}>{fmtDate(row.date)}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 18, lineHeight: 1, padding: 4 }}>×</button>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {isRatio ? (
+            <>
+              <TickerListSection title="Up" color="#22c55e" tickers={up} />
+              <TickerListSection title="Down" color="#ef4444" tickers={down} />
+            </>
+          ) : (
+            <TickerListSection title="Matching" color={col.bull ? '#22c55e' : '#ef4444'} tickers={up} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArielBreadthTable({ rows, breadth, loading }) {
   const pct = usePercentiles(rows);
+  const [modalInfo, setModalInfo] = useState(null);
 
   if (loading) {
     return (
@@ -158,6 +236,9 @@ export default function ArielBreadthTable({ rows, breadth, loading }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '8px 14px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', background: 'var(--bg-panel)' }}>
         <span style={{ fontSize: 10, fontWeight: 800, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#94a3b8', marginRight: 4 }}>
           ARIEL BREADTH
+        </span>
+        <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace', marginRight: 4 }}>
+          Click any cell to see its tickers
         </span>
         {statBar.map(s => (
           <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -225,7 +306,13 @@ export default function ArielBreadthTable({ rows, breadth, loading }) {
                     const { min = 0, max = 1 } = pct[col.key] || {};
                     const [bg, fg] = cellStyle(val, min, max, col.bull, col.isRatio, col.isPct);
                     return (
-                      <td key={col.key} style={{ ...TD_BASE, background: bg, color: fg }}>
+                      <td
+                        key={col.key}
+                        onClick={() => val != null && setModalInfo({ col, row })}
+                        style={{ ...TD_BASE, background: bg, color: fg, cursor: val != null ? 'pointer' : 'default' }}
+                        onMouseEnter={e => { if (val != null) e.currentTarget.style.outline = '1px solid rgba(255,255,255,0.3)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.outline = 'none'; }}
+                      >
                         {fmtVal(val, col)}
                       </td>
                     );
@@ -236,6 +323,8 @@ export default function ArielBreadthTable({ rows, breadth, loading }) {
           </tbody>
         </table>
       </div>
+
+      {modalInfo && <TickerListModal info={modalInfo} onClose={() => setModalInfo(null)} />}
     </div>
   );
 }
