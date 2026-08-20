@@ -615,7 +615,7 @@ export default function App() {
           <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />
         )}
         {desktopTab === 'highs' && (
-          <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />
+          <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} clipboard={clipboard} onClip={onClip} />
         )}
         {desktopTab === 'positioning' && (
           <Positioning />
@@ -664,7 +664,7 @@ export default function App() {
           />
         )}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
-        {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
+        {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} clipboard={clipboard} onClip={onClip} />}
         {mobileTab === 'positioning' && <Positioning />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
         {mobileTab === 'sec'      && <SecFilings />}

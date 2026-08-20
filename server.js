@@ -75,6 +75,29 @@ app.get('/api/quotes', async (req, res) => {
   }
 });
 
+// GET /api/profile?symbol=FIG — sector/industry via quoteSummary's assetProfile
+// module. The plain /v7/finance/quote endpoint used by /api/quotes never
+// carries sector/industry, so out-of-universe ticker lookups need this too.
+app.get('/api/profile', async (req, res) => {
+  const { symbol } = req.query;
+  if (!symbol) return res.status(400).json({ error: 'symbol required' });
+
+  try {
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile&crumb=${encodeURIComponent(crumb)}`;
+    const r = await fetch(url, { headers: { Cookie: cookieStr, 'User-Agent': UA } });
+    if (r.status === 401) {
+      await refreshAuth();
+      return res.status(503).json({ error: 'Auth refreshed, please retry' });
+    }
+    const d = await r.json();
+    const profile = d?.quoteSummary?.result?.[0]?.assetProfile || {};
+    res.json({ sector: profile.sector || null, industry: profile.industry || null });
+  } catch (err) {
+    console.error('/api/profile error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/history?symbols=SMH,IBB&range=6mo&interval=1d
 const HISTORY_INTERVALS = new Set(['1d', '60m', '30m', '15m', '5m', '1wk', '1mo']);
 
