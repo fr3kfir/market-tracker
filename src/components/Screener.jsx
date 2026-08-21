@@ -51,6 +51,36 @@ const PRESETS = [
     groupRankMax: null,
   },
   {
+    label: '🏦 Institutional Buying',
+    desc:  'S2 · Up today on ≥ 1.5× volume · Top 40 Groups — accumulation footprint, Ariel-style',
+    filters: { stages: ['S2'], changeMin: 1, volBuzzMin: 1.5 },
+    groupRankMax: 40,
+  },
+  {
+    label: '↩️ Pullback in Uptrend',
+    desc:  'S2 · RS ≥ 70 · Within 3% of the 50-day SMA — buy-the-dip entries in established leaders',
+    filters: { stages: ['S2'], rsMin: 70, distSma50Min: -3, distSma50Max: 3 },
+    groupRankMax: null,
+  },
+  {
+    label: '🎯 Qullamaggie Breakout',
+    desc:  'RS ≥ 90 · ADR ≥ 5% · +25% in 1M · Within 10% of 52w High — his public momentum-breakout screen',
+    filters: { rsMin: 90, adrMin: 5, m1Min: 25, distHighMin: -10, distHighMax: 0 },
+    groupRankMax: null,
+  },
+  {
+    label: '💥 Episodic Pivot',
+    desc:  'Up ≥ 10% today on ≥ 5× volume — earnings/news gap setup (Kullamägi\'s "EP")',
+    filters: { changeMin: 10, volBuzzMin: 5 },
+    groupRankMax: null,
+  },
+  {
+    label: '🤏 Tight Flag',
+    desc:  '+20% in 1M, now quiet (±1.5% today) 1-12% off the 52w high — consolidating after a big run before a possible re-breakout',
+    filters: { m1Min: 20, distHighMin: -12, distHighMax: -1, changeMin: -1.5, changeMax: 1.5 },
+    groupRankMax: null,
+  },
+  {
     label: '🛡️ Relative Strength',
     desc:  'Beating the market (SPY) by ≥ 2% today — stocks showing real strength vs the index',
     filters: { relVsMktMin: 2 },
