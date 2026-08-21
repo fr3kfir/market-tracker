@@ -68,6 +68,26 @@ exports.handler = async (event) => {
       allResults.push(...results);
     }
 
+    // v7/finance/quote doesn't reliably carry sector/industry even when
+    // requested via `fields` — those live in quoteSummary's assetProfile
+    // module. Backfill from there, but only for small (single-ticker) lookups
+    // so bulk universe pulls don't pay for an extra call per symbol.
+    if (symbolList.length <= 5) {
+      await Promise.all(allResults.map(async (r) => {
+        if (!r?.symbol || (r.sector && r.industry)) return;
+        try {
+          const profileUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(r.symbol)}?modules=assetProfile&crumb=${encodeURIComponent(crumb)}`;
+          const pr = await fetch(profileUrl, { headers: yfHeaders });
+          const pd = await pr.json();
+          const profile = pd?.quoteSummary?.result?.[0]?.assetProfile;
+          if (profile) {
+            r.sector = profile.sector;
+            r.industry = profile.industry;
+          }
+        } catch { /* sector/industry are optional enrichment */ }
+      }));
+    }
+
     return {
       statusCode: 200,
       headers: corsHeaders,

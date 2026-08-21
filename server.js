@@ -67,6 +67,25 @@ app.get('/api/quotes', async (req, res) => {
       const results = d?.quoteResponse?.result || [];
       allResults.push(...results);
     }
+    // v7/finance/quote doesn't carry sector/industry; those live in
+    // quoteSummary's assetProfile module. Backfill for small (single-ticker)
+    // lookups only, so bulk universe pulls don't pay for an extra call per symbol.
+    if (list.length <= 5) {
+      await Promise.all(allResults.map(async (r) => {
+        if (!r?.symbol || (r.sector && r.industry)) return;
+        try {
+          const profileUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(r.symbol)}?modules=assetProfile&crumb=${encodeURIComponent(crumb)}`;
+          const pr = await fetch(profileUrl, { headers: { Cookie: cookieStr, 'User-Agent': UA } });
+          const pd = await pr.json();
+          const profile = pd?.quoteSummary?.result?.[0]?.assetProfile;
+          if (profile) {
+            r.sector = profile.sector;
+            r.industry = profile.industry;
+          }
+        } catch { /* sector/industry are optional enrichment */ }
+      }));
+    }
+
     console.log(`✓ Quotes: ${allResults.filter(q => q.regularMarketPrice).length}/${list.length}`);
     res.json({ quoteResponse: { result: allResults } });
   } catch (err) {
