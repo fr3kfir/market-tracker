@@ -2,6 +2,16 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { SECTOR_STOCKS, INDUSTRY_GROUPS } from '../data/stockUniverse';
 import { enrichWithHistory } from '../services/marketData';
 
+// Yahoo's sector taxonomy doesn't match our internal sector labels 1:1 —
+// map Yahoo's names to ours before matching against INDUSTRY_GROUPS, or
+// peers silently come back empty for these 4 sectors.
+const YAHOO_SECTOR_ALIASES = {
+  'Financial Services':  'Financials',
+  'Consumer Cyclical':   'Consumer Discretionary',
+  'Consumer Defensive':  'Consumer Staples',
+  'Basic Materials':     'Materials',
+};
+
 const RS_COLOR = (rs) => {
   if (rs >= 80) return '#10b981';
   if (rs >= 60) return '#3b82f6';
@@ -450,7 +460,8 @@ export default function StockSearch({ stocksByTicker }) {
           {unknownStock.sector && (() => {
             // Match Yahoo's sector name to our INDUSTRY_GROUPS sectors
             const yahooSector = unknownStock.sector; // e.g. "Technology"
-            const peerGroups = INDUSTRY_GROUPS.filter(g => g.sector === yahooSector);
+            const mappedSector = YAHOO_SECTOR_ALIASES[yahooSector] || yahooSector;
+            const peerGroups = INDUSTRY_GROUPS.filter(g => g.sector === mappedSector);
             if (!peerGroups.length) return null;
 
             // Get top stocks from those groups sorted by RS
