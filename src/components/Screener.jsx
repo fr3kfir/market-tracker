@@ -45,6 +45,12 @@ const PRESETS = [
     groupRankMax: 40,
   },
   {
+    label: '🚀 Accelerating Sales',
+    desc:  'Sales growth accelerating for 2-3 straight quarters (YoY) · S2 · RS ≥ 70 — Ariel-style fundamentals + momentum',
+    filters: { accelGrowthOnly: true, stages: ['S2'], rsMin: 70 },
+    groupRankMax: null,
+  },
+  {
     label: '🛡️ Relative Strength',
     desc:  'Beating the market (SPY) by ≥ 2% today — stocks showing real strength vs the index',
     filters: { relVsMktMin: 2 },
@@ -124,6 +130,7 @@ const DEFAULT_FILTERS = {
   avgVolMin: '', avgVolMax: '', volumeMin: '', volumeMax: '',
   priceMin: '', priceMax: '', targetUpsideMin: '', targetUpsideMax: '',
   w1Min: '', w1Max: '', m1Min: '', m1Max: '', m3Min: '', m3Max: '',
+  accelGrowthOnly: false, salesGrowthMin: '', salesGrowthMax: '',
 };
 
 // Build static sector lookup
@@ -143,6 +150,8 @@ function applyFilters(stocks, f, groupRankMax, tickerGroupRank) {
   return stocks.filter(s => {
     if (f.sectors.length && !f.sectors.includes(TICKER_SECTOR[s.ticker])) return false;
     if (f.stages.length  && !f.stages.includes(s.stage))  return false;
+    if (f.accelGrowthOnly && !s.accelGrowth) return false;
+    if (!pass(s.salesGrowthYoY, 'salesGrowthMin', 'salesGrowthMax', f)) return false;
     if (groupRankMax != null) {
       const rank = tickerGroupRank[s.ticker];
       if (rank == null || rank > groupRankMax) return false;
@@ -346,6 +355,10 @@ function StockRow({ stock, i, onTickerClick, cs, onClip, groupRank, groupName, s
       <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: stock.rs != null ? RS_COLOR(stock.rs) : 'var(--text-faint)' }}>
         {stock.rs != null ? stock.rs : '—'}
       </td>
+      <td title={stock.salesGrowthSeries ? `YoY by quarter: ${stock.salesGrowthSeries.map(g => `${g >= 0 ? '+' : ''}${g}%`).join(' → ')}` : undefined}
+        style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: stock.salesGrowthYoY != null ? (stock.salesGrowthYoY >= 0 ? '#34d399' : '#f87171') : 'var(--text-faint)' }}>
+        {stock.salesGrowthYoY != null ? `${stock.accelGrowth ? '⚡' : ''}${stock.salesGrowthYoY >= 0 ? '+' : ''}${stock.salesGrowthYoY.toFixed(1)}%` : '—'}
+      </td>
       <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: stock.adrPct != null ? ADR_COLOR(stock.adrPct) : 'var(--text-faint)' }}>
         {stock.adrPct != null ? `${stock.adrPct.toFixed(1)}%` : '—'}
       </td>
@@ -421,6 +434,12 @@ function ChartCard({ stock, range, cs, onClip, onTickerClick, groupRank, groupNa
         {stock.adrPct != null && (
           <span title="Average Daily Range % (20 days)" style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: ADR_COLOR(stock.adrPct), background: ADR_COLOR(stock.adrPct) + '18', padding: '1px 4px', borderRadius: 3, flexShrink: 0 }}>
             ADR {stock.adrPct.toFixed(1)}%
+          </span>
+        )}
+        {/* Accelerating sales growth */}
+        {stock.accelGrowth && (
+          <span title={`Sales growth accelerating — latest YoY +${stock.salesGrowthYoY}%`} style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.15)', padding: '1px 4px', borderRadius: 3, flexShrink: 0 }}>
+            ⚡ +{stock.salesGrowthYoY}%
           </span>
         )}
         {/* Group rank */}
@@ -551,17 +570,33 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
     return () => { cancelled = true; };
   }, []);
 
+  // Multi-quarter sales-growth acceleration — precomputed daily (Yahoo has
+  // no batch endpoint for quarterly revenue), served as a static JSON.
+  const [salesGrowthData, setSalesGrowthData] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/data/sales-growth.json')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setSalesGrowthData(d?.tickers || {}); })
+      .catch(() => { if (!cancelled) setSalesGrowthData({}); });
+    return () => { cancelled = true; };
+  }, []);
+
   const allStocks = useMemo(() => Object.values(stocksByTicker).map(s => {
     const h = histData?.[s.ticker];
-    if (!h) return s;
+    const sg = salesGrowthData?.[s.ticker];
+    if (!h && !sg) return s;
     return {
       ...s,
-      adrPct: h.adrPct ?? null,
-      w1: s.w1 ?? h.r1w ?? null,
-      m1: s.m1 ?? h.r1m ?? null,
-      m3: s.m3 ?? h.r3m ?? null,
+      adrPct: h?.adrPct ?? null,
+      w1: s.w1 ?? h?.r1w ?? null,
+      m1: s.m1 ?? h?.r1m ?? null,
+      m3: s.m3 ?? h?.r3m ?? null,
+      accelGrowth: sg?.accelerating ?? null,
+      salesGrowthYoY: sg?.latestGrowth ?? null,
+      salesGrowthSeries: sg?.revenueGrowthYoY ?? null,
     };
-  }), [stocksByTicker, histData]);
+  }), [stocksByTicker, histData, salesGrowthData]);
   const filtered  = useMemo(
     () => applyFilters(allStocks, filters, groupRankMax, tickerGroupRank),
     [allStocks, filters, groupRankMax, tickerGroupRank]
@@ -636,7 +671,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
   };
 
   const hasActiveFilters = groupRankMax != null || Object.entries(filters).some(([, v]) =>
-    Array.isArray(v) ? v.length > 0 : v !== ''
+    Array.isArray(v) ? v.length > 0 : typeof v === 'boolean' ? v : v !== ''
   );
 
   const clipState = (ticker) => {
@@ -738,6 +773,18 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <SectorToggle sectors={filters.sectors} onChange={v => setFilters(f => ({ ...f, sectors: v }))} />
               <StageToggle  stages={filters.stages}   onChange={v => setFilters(f => ({ ...f, stages: v }))} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fundamentals</span>
+                <button
+                  onClick={() => setFilters(f => ({ ...f, accelGrowthOnly: !f.accelGrowthOnly }))}
+                  title="Sales growth YoY has accelerated for the last 2-3 quarters — the Ariel Hernandez / CANSLIM 'accelerating sales growth' criterion"
+                  style={{
+                    alignSelf: 'flex-start', padding: '5px 12px', fontFamily: 'monospace', fontSize: 12, fontWeight: 700, borderRadius: 6,
+                    border: `1px solid ${filters.accelGrowthOnly ? '#f59e0b' : 'var(--border)'}`,
+                    background: filters.accelGrowthOnly ? 'rgba(245,158,11,0.15)' : 'transparent',
+                    color: filters.accelGrowthOnly ? '#f59e0b' : 'var(--text-muted)', cursor: 'pointer',
+                  }}>⚡ Accelerating Sales Growth (Ariel)</button>
+              </div>
             </div>
           )}
           {activeTab === 'Fundamental' && (
@@ -754,6 +801,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                 <RangeRow label="EPS (TTM)"            minKey="epsMin"       maxKey="epsMax"       {...sf} step="0.01" />
                 <RangeRow label="EPS Forward"          minKey="epsFMin"      maxKey="epsFMax"      {...sf} step="0.01" />
                 <RangeRow label="Dividend Yield (%)"   minKey="divYieldMin"  maxKey="divYieldMax"  {...sf} step="0.1" />
+                <RangeRow label="Sales Growth YoY (%)" minKey="salesGrowthMin" maxKey="salesGrowthMax" {...sf} note="latest quarter · daily-cached" />
               </FilterGroup>
               <FilterGroup title="Share Structure">
                 <RangeRow label="Shares Outstanding (B)" minKey="sharesOutMin" maxKey="sharesOutMax" {...sf} step="0.1" />
@@ -883,7 +931,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       {viewMode === 'list' && (
         <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: showMiniCharts ? 1280 : 1080 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: showMiniCharts ? 1340 : 1140 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <SortTh label="Ticker"    col="ticker"         align="left" {...thProps} />
@@ -901,6 +949,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                   <SortTh label="1M"        col="m1"             {...thProps} />
                   <SortTh label="3M"        col="m3"             {...thProps} />
                   <SortTh label="RS"        col="rs"             {...thProps} />
+                  <SortTh label="Sales Gr"  col="salesGrowthYoY" title="Latest quarter revenue growth YoY (%) · ⚡ = accelerating 2-3 straight quarters" {...thProps} />
                   <SortTh label="ADR"       col="adrPct"         title="Average Daily Range % over 20 days — Ariel trades names with ADR ≥ 3.5%" {...thProps} />
                   <SortTh label="Vol Buzz"  col="volBuzz"        {...thProps} />
                   <SortTh label="52w High"  col="distSma52wHigh" {...thProps} />
@@ -911,7 +960,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
               </thead>
               <tbody>
                 {sorted.length === 0 ? (
-                  <tr><td colSpan={showMiniCharts ? 17 : 16} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
+                  <tr><td colSpan={showMiniCharts ? 18 : 17} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 13 }}>No stocks match the current filters</td></tr>
                 ) : sorted.map((stock, i) => {
                   const gi = tickerToGroupInfo[stock.ticker];
                   return (

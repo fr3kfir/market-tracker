@@ -9,7 +9,8 @@
     "client": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fetch:sales-growth": "node scripts/fetch-sales-growth.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
