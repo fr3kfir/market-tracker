@@ -91,7 +91,7 @@ export const SECTOR_STOCKS = {
     // E-commerce
     'W','ETSY','CPNG','SE','JD','PDD','MELI','CHWY','CARG',
     // Auto
-    'AN','KMX','PAG','GPC','LKQ','DORM','ALSN',
+    'AN','KMX','PAG','GPC','LKQ','DORM','ALSN','VGNT',
     // Home products / Appliances
     'SN','WSM','RH','TPX','MHK','WHR','YETI','LZB','ARHS',
   ],
@@ -250,7 +250,7 @@ export const INDUSTRY_GROUPS = [
   { name: 'Retail — Apparel',       sector: 'Consumer Discretionary', tickers: ['NKE','LULU','TJX','ROST','PVH','RL','SKX','CROX','UAA','HBI','VFC','GOOS','ONON','DECK','BIRK','VSCO','CPRI','TPR','AEO','ANF'] },
   { name: 'Retail — E-commerce',    sector: 'Consumer Discretionary', tickers: ['AMZN','ETSY','W','CHWY','CPNG','SE','JD','PDD','MELI','EBAY','CARG','FTDR'] },
   { name: 'Leisure / Travel',       sector: 'Consumer Discretionary', tickers: ['ABNB','BKNG','HLT','MAR','CCL','RCL','NCLH','EXPE','VAC','TNL','TRIP','HGV','IHG','WH'] },
-  { name: 'Auto Parts / Dealers',   sector: 'Consumer Discretionary', tickers: ['AZO','ORLY','AAP','AN','KMX','PAG','GPC','LKQ','DORM','ALSN','APTV','GT'] },
+  { name: 'Auto Parts / Dealers',   sector: 'Consumer Discretionary', tickers: ['AZO','ORLY','AAP','AN','KMX','PAG','GPC','LKQ','DORM','ALSN','APTV','GT','VGNT'] },
   { name: 'Footwear / Athleisure',  sector: 'Consumer Discretionary', tickers: ['NKE','LULU','ONON','DECK','BIRK','SKX','CROX','UAA','BOOT','GOOS','COLM','VFC','RL'] },
   { name: 'Home / Appliances',      sector: 'Consumer Discretionary', tickers: ['SN','WSM','RH','TPX','MHK','WHR','YETI','LZB','ARHS'] },
   // ── Industrials ──
