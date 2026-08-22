@@ -121,9 +121,13 @@ async function fetchTicker(ticker) {
   if (revQuarters.length < 5) return { reason: 'too-few-revenue-quarters' };
 
   const yoy = computeYoYGrowth(revQuarters);
-  if (yoy.length < 2) return { reason: 'too-few-yoy-matches' };
+  // Only 1 YoY point is needed to report a growth figure at all; "accelerating"
+  // (which compares consecutive YoY rates) additionally needs 2+ below.
+  if (yoy.length < 1) return { reason: 'too-few-yoy-matches' };
 
-  const accelerating = yoy.every((p, i) => i === 0 || p.growth > yoy[i - 1].growth) && yoy[yoy.length - 1].growth > 0;
+  const accelerating = yoy.length >= 2
+    && yoy.every((p, i) => i === 0 || p.growth > yoy[i - 1].growth)
+    && yoy[yoy.length - 1].growth > 0;
 
   const epsQuarters = result
     .map(entry => {
