@@ -4,9 +4,6 @@ on:
   schedule:
     - cron: '0 11 * * *' # daily, after markets have reported for the day
   workflow_dispatch: {}
-  push:
-    branches: [master]
-    paths: ['.github/workflows/sales-growth.yml'] # TEMP: one-off manual trigger, remove after this run (re-run 2 — YoY threshold fix)
 
 permissions:
   contents: write
