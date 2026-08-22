@@ -66,10 +66,17 @@ export async function fetchArielBreadthData(allSymbols) {
     let up13_34 = 0, dn13_34 = 0;
     let above50 = 0, counted = 0;
 
+    // Ticker lists for each clickable metric — lets the UI drill into "who's in this count"
+    const tickers = {
+      up4: [], dn4: [], up25q: [], dn25q: [], up25m: [], dn25m: [],
+      up50m: [], dn50m: [], up13_34: [], dn13_34: [], above50dma: [],
+    };
+
     for (let si = 0; si < symbols.length; si++) {
       const price = closes[si][di];
       if (!price) continue;
       counted++;
+      const sym = symbols[si];
 
       const p1  = di1  >= 0 ? closes[si][di1]  : null;
       const p5  = di5  >= 0 ? closes[si][di5]  : null;
@@ -80,19 +87,30 @@ export async function fetchArielBreadthData(allSymbols) {
 
       if (p1) {
         const c = (price - p1) / p1 * 100;
-        if (c >= 4) up4++; if (c <= -4) dn4++;
+        if (c >= 4) { up4++; tickers.up4.push(sym); }
+        if (c <= -4) { dn4++; tickers.dn4.push(sym); }
       }
       if (p5 && di5 >= 0) { const c = (price - p5) / p5 * 100; if (c > 0) pos5++; else if (c < 0) neg5++; }
       if (p10 && di10 >= 0) { const c = (price - p10) / p10 * 100; if (c > 0) pos10++; else if (c < 0) neg10++; }
-      if (p66 && di66 >= 0) { const c = (price - p66) / p66 * 100; if (c >= 25) up25q++; if (c <= -25) dn25q++; }
+      if (p66 && di66 >= 0) {
+        const c = (price - p66) / p66 * 100;
+        if (c >= 25) { up25q++; tickers.up25q.push(sym); }
+        if (c <= -25) { dn25q++; tickers.dn25q.push(sym); }
+      }
       if (p22 && di22 >= 0) {
         const c = (price - p22) / p22 * 100;
-        if (c >= 25) up25m++; if (c <= -25) dn25m++;
-        if (c >= 50) up50m++; if (c <= -50) dn50m++;
+        if (c >= 25) { up25m++; tickers.up25m.push(sym); }
+        if (c <= -25) { dn25m++; tickers.dn25m.push(sym); }
+        if (c >= 50) { up50m++; tickers.up50m.push(sym); }
+        if (c <= -50) { dn50m++; tickers.dn50m.push(sym); }
       }
-      if (p34 && di34 >= 0) { const c = (price - p34) / p34 * 100; if (c >= 13) up13_34++; if (c <= -13) dn13_34++; }
+      if (p34 && di34 >= 0) {
+        const c = (price - p34) / p34 * 100;
+        if (c >= 13) { up13_34++; tickers.up13_34.push(sym); }
+        if (c <= -13) { dn13_34++; tickers.dn13_34.push(sym); }
+      }
       const sm = sma50[si][di];
-      if (sm !== null && price > sm) above50++;
+      if (sm !== null && price > sm) { above50++; tickers.above50dma.push(sym); }
     }
 
     const ratio5  = neg5  > 0 ? Math.round(pos5  / neg5  * 100) / 100 : (pos5  > 0 ? 9.99 : 1);
@@ -105,6 +123,7 @@ export async function fetchArielBreadthData(allSymbols) {
       up13_34, dn13_34,
       above50dma: counted > 0 ? Math.round(above50 / counted * 1000) / 10 : 0,
       total: counted,
+      tickers,
     });
   }
 

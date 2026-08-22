@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 
 const PRIMARY_COLS = [
   { key: 'up4',     label: 'Stocks\nUp 4%+\nToday',   bull: true  },
@@ -35,31 +35,68 @@ function usePercentiles(rows) {
   }, [rows]);
 }
 
+// ── Contrast-safe text color ──────────────────────────────────────────────
+// The cell background is a semi-transparent tint over the (near-black) panel
+// background, so a fixed dark-green/dark-red text color goes invisible at low
+// alpha (the tint barely lightens the dark panel underneath it). Instead we
+// blend the tint over the panel color and pick text by the *actual* resulting
+// luminance, so every bucket stays readable regardless of alpha.
+const PANEL_RGB = [13, 20, 36]; // var(--bg-panel) in the dark theme
+const GREEN_RGB = [34, 197, 94];
+const RED_RGB   = [220, 38, 38];
+
+const GREEN_DARK = [5, 46, 22];     // #052e16
+const GREEN_LIGHT = [187, 247, 208]; // #bbf7d0
+const RED_DARK = [69, 10, 10];       // #450a0a
+const RED_LIGHT = [254, 202, 202];   // #fecaca
+
+function blend(base, tint, alpha) {
+  return base.map((b, i) => b * (1 - alpha) + tint[i] * alpha);
+}
+function relLuminance([r, g, b]) {
+  const lin = c => { const cs = c / 255; return cs <= 0.03928 ? cs / 12.92 : Math.pow((cs + 0.055) / 1.055, 2.4); };
+  const [rl, gl, bl] = [r, g, b].map(lin);
+  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+}
+function contrastRatio(rgbA, rgbB) {
+  const L1 = relLuminance(rgbA), L2 = relLuminance(rgbB);
+  const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
+  return (hi + 0.05) / (lo + 0.05);
+}
+// Picks whichever candidate (dark vs light) has the higher actual contrast
+// ratio against this specific blended background — no guessed thresholds.
+function fgForTint(alpha, green) {
+  const bg = blend(PANEL_RGB, green ? GREEN_RGB : RED_RGB, alpha);
+  const dark = green ? GREEN_DARK : RED_DARK;
+  const light = green ? GREEN_LIGHT : RED_LIGHT;
+  const better = contrastRatio(bg, dark) >= contrastRatio(bg, light) ? dark : light;
+  return `rgb(${better[0]},${better[1]},${better[2]})`;
+}
+
 // Returns [background, textColor]
-// Rule: bright/saturated bg → dark text; dim bg → light text; none → muted
 function cellStyle(val, min, max, bull, isRatio, isPct) {
   if (val == null) return ['transparent', 'var(--text-muted)'];
 
   if (isRatio) {
-    if (val >= 3.5) return ['rgba(21,128,61,0.85)',  '#052e16'];
-    if (val >= 2.5) return ['rgba(22,163,74,0.65)',  '#052e16'];
-    if (val >= 2.0) return ['rgba(34,197,94,0.38)',  '#14532d'];
-    if (val >= 1.5) return ['rgba(74,222,128,0.20)', '#166534'];
-    if (val >= 1.1) return ['rgba(163,230,53,0.12)', '#3f6212'];
+    if (val >= 3.5) return ['rgba(21,128,61,0.85)',  fgForTint(0.85, true)];
+    if (val >= 2.5) return ['rgba(22,163,74,0.65)',  fgForTint(0.65, true)];
+    if (val >= 2.0) return ['rgba(34,197,94,0.38)',  fgForTint(0.38, true)];
+    if (val >= 1.5) return ['rgba(74,222,128,0.20)', fgForTint(0.20, true)];
+    if (val >= 1.1) return ['rgba(34,197,94,0.12)',  fgForTint(0.12, true)];
     if (val >= 0.9) return ['rgba(100,116,139,0.08)','var(--text-muted)'];
-    if (val >= 0.7) return ['rgba(220,38,38,0.20)',  '#fca5a5'];
-    if (val >= 0.5) return ['rgba(220,38,38,0.45)',  '#fee2e2'];
-    return                 ['rgba(185,28,28,0.80)',  '#fff1f2'];
+    if (val >= 0.7) return ['rgba(220,38,38,0.20)',  fgForTint(0.20, false)];
+    if (val >= 0.5) return ['rgba(220,38,38,0.45)',  fgForTint(0.45, false)];
+    return                 ['rgba(185,28,28,0.80)',  fgForTint(0.80, false)];
   }
 
   if (isPct) {
-    if (val >= 68) return ['rgba(21,128,61,0.82)',  '#052e16'];
-    if (val >= 60) return ['rgba(34,197,94,0.48)',  '#14532d'];
-    if (val >= 52) return ['rgba(74,222,128,0.22)', '#166534'];
+    if (val >= 68) return ['rgba(21,128,61,0.82)',  fgForTint(0.82, true)];
+    if (val >= 60) return ['rgba(34,197,94,0.48)',  fgForTint(0.48, true)];
+    if (val >= 52) return ['rgba(74,222,128,0.22)', fgForTint(0.22, true)];
     if (val >= 46) return ['rgba(100,116,139,0.08)','var(--text-muted)'];
-    if (val >= 38) return ['rgba(220,38,38,0.22)',  '#fca5a5'];
-    if (val >= 30) return ['rgba(220,38,38,0.50)',  '#fee2e2'];
-    return                 ['rgba(185,28,28,0.82)',  '#fff1f2'];
+    if (val >= 38) return ['rgba(220,38,38,0.22)',  fgForTint(0.22, false)];
+    if (val >= 30) return ['rgba(220,38,38,0.50)',  fgForTint(0.50, false)];
+    return                 ['rgba(185,28,28,0.82)',  fgForTint(0.82, false)];
   }
 
   const range = max - min;
@@ -67,15 +104,8 @@ function cellStyle(val, min, max, bull, isRatio, isPct) {
   const t = (val - min) / range;
   if (t < 0.08) return ['rgba(100,116,139,0.08)', 'var(--text-muted)'];
   const alpha = Math.round((0.12 + t * 0.78) * 100) / 100;
-  if (bull) {
-    // bright green bg → dark green text; dim → lighter
-    const fg = t > 0.55 ? '#052e16' : t > 0.30 ? '#14532d' : '#166534';
-    return [`rgba(34,197,94,${alpha})`, fg];
-  } else {
-    // bright red bg → near-white text; dim red → light red text
-    const fg = t > 0.55 ? '#fff1f2' : t > 0.30 ? '#fee2e2' : '#fca5a5';
-    return [`rgba(220,38,38,${alpha})`, fg];
-  }
+  const rgb = bull ? '34,197,94' : '220,38,38';
+  return [`rgba(${rgb},${alpha})`, fgForTint(alpha, bull)];
 }
 
 function fmtDate(d) {
@@ -118,8 +148,63 @@ const TD_BASE = {
   transition: 'background 0.2s',
 };
 
+// ── Drill-down modal: shows which tickers make up a cell's count ─────────
+function TickerDrilldown({ date, col, tickers, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--bg-panel)', border: '1px solid var(--border-hi)', borderRadius: 12,
+          maxWidth: 560, width: '100%', maxHeight: '75vh', display: 'flex', flexDirection: 'column',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)' }}>{fmtDate(date)}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>{col.label.replace(/\n/g, ' ')} · {tickers.length} {tickers.length === 1 ? 'stock' : 'stocks'}</div>
+          </div>
+          <button onClick={onClose} style={{
+            border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)',
+            borderRadius: 7, cursor: 'pointer', fontSize: 12, padding: '4px 10px',
+          }}>✕ Close</button>
+        </div>
+        <div style={{ padding: 14, overflowY: 'auto' }}>
+          {tickers.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 12, color: 'var(--text-faint)' }}>No stocks matched this on this day.</div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {tickers.map(t => (
+                <a
+                  key={t}
+                  href={`https://www.tradingview.com/chart/?symbol=${t}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{
+                    fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--text)',
+                    border: '1px solid var(--border)', borderRadius: 6, padding: '4px 9px',
+                    textDecoration: 'none', background: 'var(--bg)',
+                  }}
+                >{t}</a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArielBreadthTable({ rows, breadth, loading }) {
   const pct = usePercentiles(rows);
+  const [drilldown, setDrilldown] = useState(null); // { date, col, tickers } | null
 
   if (loading) {
     return (
@@ -224,8 +309,15 @@ export default function ArielBreadthTable({ rows, breadth, loading }) {
                     const val = row[col.key];
                     const { min = 0, max = 1 } = pct[col.key] || {};
                     const [bg, fg] = cellStyle(val, min, max, col.bull, col.isRatio, col.isPct);
+                    const cellTickers = row.tickers?.[col.key];
+                    const clickable = !col.isRatio && cellTickers !== undefined;
                     return (
-                      <td key={col.key} style={{ ...TD_BASE, background: bg, color: fg }}>
+                      <td
+                        key={col.key}
+                        onClick={clickable ? () => setDrilldown({ date: row.date, col, tickers: cellTickers }) : undefined}
+                        style={{ ...TD_BASE, background: bg, color: fg, cursor: clickable ? 'pointer' : 'default' }}
+                        title={clickable ? 'Click to see which stocks' : undefined}
+                      >
                         {fmtVal(val, col)}
                       </td>
                     );
@@ -236,6 +328,15 @@ export default function ArielBreadthTable({ rows, breadth, loading }) {
           </tbody>
         </table>
       </div>
+
+      {drilldown && (
+        <TickerDrilldown
+          date={drilldown.date}
+          col={drilldown.col}
+          tickers={drilldown.tickers}
+          onClose={() => setDrilldown(null)}
+        />
+      )}
     </div>
   );
 }
