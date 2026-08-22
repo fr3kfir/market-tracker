@@ -97,6 +97,23 @@ function computeQoQGrowth(quarters) {
   return Math.round(((cur.value - prev.value) / prev.value) * 1000) / 10;
 }
 
+// Sequential-quarter acceleration: each of the last 2-3 quarter-over-quarter
+// growth rates higher than the one before it, and the latest positive. Unlike
+// the YoY version above, this only needs ~4 quarters (not ~9), which is why
+// it's the one that actually has coverage given Yahoo's real data depth for
+// most tickers. Trade-off: more exposed to seasonal swings (e.g. retail Q4)
+// than a true YoY comparison would be.
+function computeSequentialAcceleration(quarters) {
+  if (quarters.length < 4) return null;
+  const rates = [];
+  for (let i = quarters.length - 3; i < quarters.length; i++) {
+    const cur = quarters[i], prev = quarters[i - 1];
+    if (!(prev.value > 0)) return null;
+    rates.push(((cur.value - prev.value) / prev.value) * 100);
+  }
+  return rates.every((r, i) => i === 0 || r > rates[i - 1]) && rates[rates.length - 1] > 0;
+}
+
 // Returns { data } on success or { reason } on a well-formed "nothing to report"
 // result (as opposed to a thrown network/API error) — the reason is tallied in
 // main() so a CI run's log shows exactly where coverage is being lost.
@@ -164,6 +181,9 @@ async function fetchTicker(ticker) {
       revenueGrowthYoY: yoy.map(p => p.growth),
       quarterDates: yoy.map(p => p.date.toISOString().slice(0, 10)),
       accelerating,
+      // More broadly available than `accelerating` (needs 4 quarters, not ~9) —
+      // sequential QoQ rates rising, at the cost of some seasonal noise
+      acceleratingQoQ: computeSequentialAcceleration(revQuarters),
       latestGrowth: yoy[yoy.length - 1].growth,
       // Sequential quarter-over-quarter growth — the "Qtr Over Qtr" filter Finviz-style screeners use
       salesGrowthQoQ: computeQoQGrowth(revQuarters),

@@ -45,9 +45,9 @@ const PRESETS = [
     groupRankMax: 40,
   },
   {
-    label: '🚀 Accelerating Sales',
-    desc:  'Sales growth accelerating for 2-3 straight quarters (YoY) · S2 · RS ≥ 70 — Ariel-style fundamentals + momentum',
-    filters: { accelGrowthOnly: true, stages: ['S2'], rsMin: 70 },
+    label: '🚀 Accelerating Sales (QoQ)',
+    desc:  'Sales growth accelerating for 3 straight quarters (sequential) · S2 · RS ≥ 70 — broader coverage than the strict YoY version, more exposed to seasonal noise',
+    filters: { accelGrowthQoQOnly: true, stages: ['S2'], rsMin: 70 },
     groupRankMax: null,
   },
   {
@@ -197,7 +197,7 @@ const DEFAULT_FILTERS = {
   avgVolMin: '', avgVolMax: '', volumeMin: '', volumeMax: '',
   priceMin: '', priceMax: '', targetUpsideMin: '', targetUpsideMax: '',
   w1Min: '', w1Max: '', m1Min: '', m1Max: '', m3Min: '', m3Max: '',
-  accelGrowthOnly: false, salesGrowthMin: '', salesGrowthMax: '',
+  accelGrowthOnly: false, accelGrowthQoQOnly: false, salesGrowthMin: '', salesGrowthMax: '',
   salesGrowthQoQMin: '', salesGrowthQoQMax: '', epsGrowthQoQMin: '', epsGrowthQoQMax: '',
   dist20dHighMin: '', dist20dHighMax: '', dist20dLowMin: '', dist20dLowMax: '',
   dist50dHighMin: '', dist50dHighMax: '', dist50dLowMin: '', dist50dLowMax: '',
@@ -223,6 +223,7 @@ function applyFilters(stocks, f, groupRankMax, tickerGroupRank) {
     if (f.sectors.length && !f.sectors.includes(TICKER_SECTOR[s.ticker])) return false;
     if (f.stages.length  && !f.stages.includes(s.stage))  return false;
     if (f.accelGrowthOnly && !s.accelGrowth) return false;
+    if (f.accelGrowthQoQOnly && !s.accelGrowthQoQ) return false;
     if (!pass(s.salesGrowthYoY, 'salesGrowthMin', 'salesGrowthMax', f)) return false;
     if (!pass(s.salesGrowthQoQ, 'salesGrowthQoQMin', 'salesGrowthQoQMax', f)) return false;
     if (!pass(s.epsGrowthQoQ,   'epsGrowthQoQMin',   'epsGrowthQoQMax',   f)) return false;
@@ -689,6 +690,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       m1: s.m1 ?? h?.r1m ?? null,
       m3: s.m3 ?? h?.r3m ?? null,
       accelGrowth: sg?.accelerating ?? null,
+      accelGrowthQoQ: sg?.acceleratingQoQ ?? null,
       salesGrowthYoY: sg?.latestGrowth ?? null,
       salesGrowthQoQ: sg?.salesGrowthQoQ ?? null,
       epsGrowthQoQ: sg?.epsGrowthQoQ ?? null,
@@ -876,15 +878,26 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
               <StageToggle  stages={filters.stages}   onChange={v => setFilters(f => ({ ...f, stages: v }))} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fundamentals</span>
-                <button
-                  onClick={() => setFilters(f => ({ ...f, accelGrowthOnly: !f.accelGrowthOnly }))}
-                  title="Sales growth YoY has accelerated for the last 2-3 quarters — the Ariel Hernandez / CANSLIM 'accelerating sales growth' criterion"
-                  style={{
-                    alignSelf: 'flex-start', padding: '5px 12px', fontFamily: 'monospace', fontSize: 12, fontWeight: 700, borderRadius: 6,
-                    border: `1px solid ${filters.accelGrowthOnly ? '#f59e0b' : 'var(--border)'}`,
-                    background: filters.accelGrowthOnly ? 'rgba(245,158,11,0.15)' : 'transparent',
-                    color: filters.accelGrowthOnly ? '#f59e0b' : 'var(--text-muted)', cursor: 'pointer',
-                  }}>⚡ Accelerating Sales Growth (Ariel)</button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setFilters(f => ({ ...f, accelGrowthOnly: !f.accelGrowthOnly }))}
+                    title="Sales growth YoY has accelerated for 2-3 straight quarters, each compared to the same quarter a year earlier — the strict Ariel Hernandez / CANSLIM criterion. Needs ~9 clean quarters of history, which Yahoo doesn't return for most tickers, so very few stocks will ever match this."
+                    style={{
+                      alignSelf: 'flex-start', padding: '5px 12px', fontFamily: 'monospace', fontSize: 12, fontWeight: 700, borderRadius: 6,
+                      border: `1px solid ${filters.accelGrowthOnly ? '#f59e0b' : 'var(--border)'}`,
+                      background: filters.accelGrowthOnly ? 'rgba(245,158,11,0.15)' : 'transparent',
+                      color: filters.accelGrowthOnly ? '#f59e0b' : 'var(--text-muted)', cursor: 'pointer',
+                    }}>⚡ Accelerating Sales Growth — YoY (rare)</button>
+                  <button
+                    onClick={() => setFilters(f => ({ ...f, accelGrowthQoQOnly: !f.accelGrowthQoQOnly }))}
+                    title="Sales growth has accelerated for 3 straight quarters compared sequentially (this quarter vs. last, not vs. a year ago). Needs only 4 quarters of history so far more tickers qualify, but seasonal businesses can trigger it without real acceleration."
+                    style={{
+                      alignSelf: 'flex-start', padding: '5px 12px', fontFamily: 'monospace', fontSize: 12, fontWeight: 700, borderRadius: 6,
+                      border: `1px solid ${filters.accelGrowthQoQOnly ? '#f59e0b' : 'var(--border)'}`,
+                      background: filters.accelGrowthQoQOnly ? 'rgba(245,158,11,0.15)' : 'transparent',
+                      color: filters.accelGrowthQoQOnly ? '#f59e0b' : 'var(--text-muted)', cursor: 'pointer',
+                    }}>📈 Accelerating Sales Growth — QoQ</button>
+                </div>
               </div>
             </div>
           )}
