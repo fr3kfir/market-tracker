@@ -37,11 +37,11 @@ function cleanSeries(hist) {
   return closes.length >= 10 ? { ts, closes, highs, lows } : null;
 }
 
-// ADR% — Average Daily Range over the last 20 sessions: avg(high/low) - 1.
+// ADR% — Average Daily Range over the last `window` sessions: avg(high/low) - 1.
 // Ariel only trades names that actually move — typically ADR ≥ 3.5%.
-function calcAdrPct(highs, lows) {
+function calcAdrPct(highs, lows, window = 20) {
   const n = highs.length;
-  const from = Math.max(0, n - 20);
+  const from = Math.max(0, n - window);
   let sum = 0, cnt = 0;
   for (let i = from; i < n; i++) {
     if (highs[i] > 0 && lows[i] > 0 && highs[i] >= lows[i]) {
@@ -49,7 +49,23 @@ function calcAdrPct(highs, lows) {
       cnt++;
     }
   }
-  return cnt >= 10 ? Math.round((sum / cnt - 1) * 1000) / 10 : null;
+  const minCnt = Math.max(3, Math.round(window / 2));
+  return cnt >= minCnt ? Math.round((sum / cnt - 1) * 1000) / 10 : null;
+}
+
+// Rolling N-day high/low distance — % the latest close sits from the highest
+// high / lowest low over the trailing window (0 = sitting right at that extreme).
+function calcRollingDist(closes, highs, lows, window) {
+  const n = closes.length;
+  if (n < Math.round(window / 2)) return { distHigh: null, distLow: null };
+  const from = Math.max(0, n - window);
+  const windowHigh = Math.max(...highs.slice(from, n));
+  const windowLow = Math.min(...lows.slice(from, n));
+  const last = closes[n - 1];
+  return {
+    distHigh: windowHigh > 0 ? Math.round(((last - windowHigh) / windowHigh) * 1000) / 10 : null,
+    distLow: windowLow > 0 ? Math.round(((last - windowLow) / windowLow) * 1000) / 10 : null,
+  };
 }
 
 function returnOver(closes, days) {
@@ -137,8 +153,17 @@ export async function fetchRelativeStrengthData(allSymbols) {
     }
     entry.pullbackHold = holdCnt >= 2 ? Math.round((holdSum / holdCnt) * 10) / 10 : null;
 
-    // ADR% — how much the stock actually moves per day
-    entry.adrPct = calcAdrPct(s.highs, s.lows);
+    // ADR% — how much the stock actually moves per day (20-day) and per week (5-day)
+    entry.adrPct = calcAdrPct(s.highs, s.lows, 20);
+    entry.adrPctWeek = calcAdrPct(s.highs, s.lows, 5);
+
+    // Rolling 20-day / 50-day high & low distance — real "new high" breakout detection
+    const d20 = calcRollingDist(s.closes, s.highs, s.lows, 20);
+    const d50 = calcRollingDist(s.closes, s.highs, s.lows, 50);
+    entry.dist20dHigh = d20.distHigh;
+    entry.dist20dLow  = d20.distLow;
+    entry.dist50dHigh = d50.distHigh;
+    entry.dist50dLow  = d50.distLow;
 
     // Weighted momentum (renormalize over available timeframes)
     let wSum = 0, wTot = 0;

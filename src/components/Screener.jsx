@@ -140,6 +140,32 @@ const PRESETS = [
     filters: { peMax: 15 },
     groupRankMax: null,
   },
+  {
+    label: '🌱 Small-Cap Growth',
+    desc:  'Market cap $300M+ · Price > $7 · Above 50 & 200-day SMA · 60%+ above 52w low · EPS & Sales growth qtr/qtr ≥25% · Avg volume 100K+',
+    filters: {
+      marketCapMin: 0.3, priceMin: 7, distSma50Min: 0, distSma200Min: 0,
+      distLowMin: 60, epsGrowthQoQMin: 25, salesGrowthQoQMin: 25, avgVolMin: 100000,
+    },
+    groupRankMax: null,
+  },
+  {
+    label: '💥 Mid-Cap New-High Breakout',
+    desc:  'Market cap $2B+ · Above 50-day SMA · Up today & from open · At a fresh 20-day high',
+    filters: {
+      marketCapMin: 2, distSma50Min: 0, changeMin: 0.01, changeFromOpenMin: 0.01, dist20dHighMin: 0,
+    },
+    groupRankMax: null,
+  },
+  {
+    label: '🌪️ Mid-Cap Volatility Breakout',
+    desc:  'Market cap $2B+ · Weekly ADR ≥4% · Above 50-day SMA · Up today & from open · Fresh 20-day high · 5%+ above 50-day low · Avg vol 2M+ · Volume 1M+',
+    filters: {
+      marketCapMin: 2, adrWeekMin: 4, distSma50Min: 0, changeMin: 0.01, changeFromOpenMin: 0.01,
+      dist20dHighMin: 0, dist50dLowMin: 5, avgVolMin: 2000000, volumeMin: 1000000,
+    },
+    groupRankMax: null,
+  },
 ];
 
 const DEFAULT_FILTERS = {
@@ -156,11 +182,14 @@ const DEFAULT_FILTERS = {
   relVsMktMin: '', relVsMktMax: '',
   distHighMin: '', distHighMax: '', distLowMin: '', distLowMax: '',
   betaMin: '', betaMax: '', volBuzzMin: '', volBuzzMax: '',
-  adrMin: '', adrMax: '',
+  adrMin: '', adrMax: '', adrWeekMin: '', adrWeekMax: '',
   avgVolMin: '', avgVolMax: '', volumeMin: '', volumeMax: '',
   priceMin: '', priceMax: '', targetUpsideMin: '', targetUpsideMax: '',
   w1Min: '', w1Max: '', m1Min: '', m1Max: '', m3Min: '', m3Max: '',
   accelGrowthOnly: false, salesGrowthMin: '', salesGrowthMax: '',
+  salesGrowthQoQMin: '', salesGrowthQoQMax: '', epsGrowthQoQMin: '', epsGrowthQoQMax: '',
+  dist20dHighMin: '', dist20dHighMax: '', dist20dLowMin: '', dist20dLowMax: '',
+  dist50dHighMin: '', dist50dHighMax: '', dist50dLowMin: '', dist50dLowMax: '',
 };
 
 // Build static sector lookup
@@ -182,6 +211,8 @@ function applyFilters(stocks, f, groupRankMax, tickerGroupRank) {
     if (f.stages.length  && !f.stages.includes(s.stage))  return false;
     if (f.accelGrowthOnly && !s.accelGrowth) return false;
     if (!pass(s.salesGrowthYoY, 'salesGrowthMin', 'salesGrowthMax', f)) return false;
+    if (!pass(s.salesGrowthQoQ, 'salesGrowthQoQMin', 'salesGrowthQoQMax', f)) return false;
+    if (!pass(s.epsGrowthQoQ,   'epsGrowthQoQMin',   'epsGrowthQoQMax',   f)) return false;
     if (groupRankMax != null) {
       const rank = tickerGroupRank[s.ticker];
       if (rank == null || rank > groupRankMax) return false;
@@ -207,6 +238,11 @@ function applyFilters(stocks, f, groupRankMax, tickerGroupRank) {
     if (!pass(s.distSma52wLow,   'distLowMin',        'distLowMax',        f)) return false;
     if (!pass(s.beta,            'betaMin',           'betaMax',           f)) return false;
     if (!pass(s.adrPct,          'adrMin',            'adrMax',            f)) return false;
+    if (!pass(s.adrPctWeek,      'adrWeekMin',        'adrWeekMax',        f)) return false;
+    if (!pass(s.dist20dHigh,     'dist20dHighMin',    'dist20dHighMax',    f)) return false;
+    if (!pass(s.dist20dLow,      'dist20dLowMin',     'dist20dLowMax',     f)) return false;
+    if (!pass(s.dist50dHigh,     'dist50dHighMin',    'dist50dHighMax',    f)) return false;
+    if (!pass(s.dist50dLow,      'dist50dLowMin',     'dist50dLowMax',     f)) return false;
     if (!pass(s.volBuzz,         'volBuzzMin',        'volBuzzMax',        f)) return false;
     if (!pass(s.avgVolume,       'avgVolMin',         'avgVolMax',         f)) return false;
     if (!pass(s.volume,          'volumeMin',         'volumeMax',         f)) return false;
@@ -619,11 +655,18 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
     return {
       ...s,
       adrPct: h?.adrPct ?? null,
+      adrPctWeek: h?.adrPctWeek ?? null,
+      dist20dHigh: h?.dist20dHigh ?? null,
+      dist20dLow: h?.dist20dLow ?? null,
+      dist50dHigh: h?.dist50dHigh ?? null,
+      dist50dLow: h?.dist50dLow ?? null,
       w1: s.w1 ?? h?.r1w ?? null,
       m1: s.m1 ?? h?.r1m ?? null,
       m3: s.m3 ?? h?.r3m ?? null,
       accelGrowth: sg?.accelerating ?? null,
       salesGrowthYoY: sg?.latestGrowth ?? null,
+      salesGrowthQoQ: sg?.salesGrowthQoQ ?? null,
+      epsGrowthQoQ: sg?.epsGrowthQoQ ?? null,
       salesGrowthSeries: sg?.revenueGrowthYoY ?? null,
     };
   }), [stocksByTicker, histData, salesGrowthData]);
@@ -832,6 +875,8 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                 <RangeRow label="EPS Forward"          minKey="epsFMin"      maxKey="epsFMax"      {...sf} step="0.01" />
                 <RangeRow label="Dividend Yield (%)"   minKey="divYieldMin"  maxKey="divYieldMax"  {...sf} step="0.1" />
                 <RangeRow label="Sales Growth YoY (%)" minKey="salesGrowthMin" maxKey="salesGrowthMax" {...sf} note="latest quarter · daily-cached" />
+                <RangeRow label="Sales Growth QoQ (%)" minKey="salesGrowthQoQMin" maxKey="salesGrowthQoQMax" {...sf} note="qtr vs prior qtr" />
+                <RangeRow label="EPS Growth QoQ (%)"   minKey="epsGrowthQoQMin"  maxKey="epsGrowthQoQMax"  {...sf} note="qtr vs prior qtr" />
               </FilterGroup>
               <FilterGroup title="Share Structure">
                 <RangeRow label="Shares Outstanding (B)" minKey="sharesOutMin" maxKey="sharesOutMax" {...sf} step="0.1" />
@@ -856,9 +901,16 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                 <RangeRow label="% from 52-Week High"  minKey="distHighMin"  maxKey="distHighMax"  {...sf} />
                 <RangeRow label="% from 52-Week Low"   minKey="distLowMin"   maxKey="distLowMax"   {...sf} />
               </FilterGroup>
+              <FilterGroup title="20/50-Day High/Low">
+                <RangeRow label="% from 20d High"   minKey="dist20dHighMin" maxKey="dist20dHighMax" {...sf} note="0 = new high" />
+                <RangeRow label="% from 20d Low"    minKey="dist20dLowMin"  maxKey="dist20dLowMax"  {...sf} note="0 = new low" />
+                <RangeRow label="% from 50d High"   minKey="dist50dHighMin" maxKey="dist50dHighMax" {...sf} note="0 = new high" />
+                <RangeRow label="% from 50d Low"    minKey="dist50dLowMin"  maxKey="dist50dLowMax"  {...sf} note="0 = new low" />
+              </FilterGroup>
               <FilterGroup title="Strength & Volatility">
                 <RangeRow label="RS Rating"            minKey="rsMin"     maxKey="rsMax"     {...sf} />
                 <RangeRow label="ADR % (20-day)"       minKey="adrMin"    maxKey="adrMax"    {...sf} step="0.5" note="avg daily range · Ariel: ≥ 3.5" />
+                <RangeRow label="ADR % (Weekly, 5-day)" minKey="adrWeekMin" maxKey="adrWeekMax" {...sf} step="0.5" note="Finviz-style weekly volatility" />
                 <RangeRow label="Beta"                 minKey="betaMin"   maxKey="betaMax"   {...sf} step="0.1" />
               </FilterGroup>
               <FilterGroup title="Volume">

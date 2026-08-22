@@ -27,11 +27,12 @@ const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const TOLERANCE_MS = 65 * 24 * 60 * 60 * 1000; // +/- ~65 days around the 1-year mark
 
 const REVENUE_KEYS = ['totalRevenue', 'quarterlyTotalRevenue', 'TotalRevenue'];
+const EPS_KEYS = ['dilutedEPS', 'quarterlyDilutedEPS', 'DilutedEPS', 'basicEPS', 'BasicEPS'];
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function extractRevenue(entry) {
-  for (const k of REVENUE_KEYS) {
+function extractField(entry, keys) {
+  for (const k of keys) {
     if (typeof entry[k] === 'number') return entry[k];
   }
   return null;
@@ -44,8 +45,8 @@ function toDate(rawDate) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-// Given quarters sorted ascending by date, compute YoY growth (%) for each
-// quarter that has a same-quarter-prior-year match within tolerance.
+// Given quarters ({date, value}) sorted ascending by date, compute YoY growth
+// (%) for each quarter that has a same-quarter-prior-year match within tolerance.
 function computeYoYGrowth(quarters) {
   const points = [];
   for (let i = quarters.length - 1; i >= 0 && points.length < 3; i--) {
@@ -57,12 +58,23 @@ function computeYoYGrowth(quarters) {
       const diff = Math.abs(q.date.getTime() - targetTime);
       if (diff < bestDiff) { bestDiff = diff; best = q; }
     }
-    if (best && bestDiff <= TOLERANCE_MS && best.revenue > 0) {
-      const growth = ((cur.revenue - best.revenue) / best.revenue) * 100;
+    if (best && bestDiff <= TOLERANCE_MS && best.value > 0) {
+      const growth = ((cur.value - best.value) / best.value) * 100;
       points.unshift({ date: cur.date, growth: Math.round(growth * 10) / 10 });
     }
   }
   return points; // oldest -> newest, up to 3
+}
+
+// Sequential quarter-over-quarter growth (%) — latest quarter vs the one
+// immediately before it, the "Qtr Over Qtr" metric Finviz-style screeners use
+// (distinct from the YoY acceleration series above).
+function computeQoQGrowth(quarters) {
+  if (quarters.length < 2) return null;
+  const cur = quarters[quarters.length - 1];
+  const prev = quarters[quarters.length - 2];
+  if (!(prev.value > 0)) return null;
+  return Math.round(((cur.value - prev.value) / prev.value) * 1000) / 10;
 }
 
 async function fetchTicker(ticker) {
@@ -74,27 +86,39 @@ async function fetchTicker(ticker) {
   );
   if (!Array.isArray(result) || !result.length) return null;
 
-  const quarters = result
+  const revQuarters = result
     .map(entry => {
       const date = toDate(entry.date);
-      const revenue = extractRevenue(entry);
-      return date && revenue != null ? { date, revenue } : null;
+      const value = extractField(entry, REVENUE_KEYS);
+      return date && value != null ? { date, value } : null;
     })
     .filter(Boolean)
     .sort((a, b) => a.date - b.date);
 
-  if (quarters.length < 5) return null; // need at least 1 YoY comparison
+  if (revQuarters.length < 5) return null; // need at least 1 YoY comparison
 
-  const yoy = computeYoYGrowth(quarters);
+  const yoy = computeYoYGrowth(revQuarters);
   if (yoy.length < 2) return null;
 
   const accelerating = yoy.every((p, i) => i === 0 || p.growth > yoy[i - 1].growth) && yoy[yoy.length - 1].growth > 0;
+
+  const epsQuarters = result
+    .map(entry => {
+      const date = toDate(entry.date);
+      const value = extractField(entry, EPS_KEYS);
+      return date && value != null ? { date, value } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date - b.date);
 
   return {
     revenueGrowthYoY: yoy.map(p => p.growth),
     quarterDates: yoy.map(p => p.date.toISOString().slice(0, 10)),
     accelerating,
     latestGrowth: yoy[yoy.length - 1].growth,
+    // Sequential quarter-over-quarter growth — the "Qtr Over Qtr" filter Finviz-style screeners use
+    salesGrowthQoQ: computeQoQGrowth(revQuarters),
+    epsGrowthQoQ: computeQoQGrowth(epsQuarters),
   };
 }
 
