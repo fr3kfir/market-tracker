@@ -21,7 +21,7 @@ const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 const OUT_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'data', 'sales-growth.json');
 const CONCURRENCY = 4;
 const RETRY_BACKOFF_MS = [2000, 6000, 15000]; // exponential backoff — Yahoo rate-limits bursts hard on this endpoint
-const BATCH_DELAY_MS = 800; // be gentle on Yahoo between batches
+const BATCH_DELAY_MS = 1000; // be gentle on Yahoo between batches — now 2 calls/ticker (financials + earnings history)
 
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const TOLERANCE_MS = 65 * 24 * 60 * 60 * 1000; // +/- ~65 days around the 1-year mark
@@ -45,25 +45,45 @@ function toDate(rawDate) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Nearest same-quarter-prior-year match for `cur`, within tolerance, or null.
+function nearestYoYQuarter(quarters, cur) {
+  const targetTime = cur.date.getTime() - YEAR_MS;
+  let best = null, bestDiff = Infinity;
+  for (const q of quarters) {
+    if (q === cur) continue;
+    const diff = Math.abs(q.date.getTime() - targetTime);
+    if (diff < bestDiff) { bestDiff = diff; best = q; }
+  }
+  return best && bestDiff <= TOLERANCE_MS ? best : null;
+}
+
 // Given quarters ({date, value}) sorted ascending by date, compute YoY growth
 // (%) for each quarter that has a same-quarter-prior-year match within tolerance.
 function computeYoYGrowth(quarters) {
   const points = [];
   for (let i = quarters.length - 1; i >= 0 && points.length < 3; i--) {
     const cur = quarters[i];
-    const targetTime = cur.date.getTime() - YEAR_MS;
-    let best = null, bestDiff = Infinity;
-    for (const q of quarters) {
-      if (q === cur) continue;
-      const diff = Math.abs(q.date.getTime() - targetTime);
-      if (diff < bestDiff) { bestDiff = diff; best = q; }
-    }
-    if (best && bestDiff <= TOLERANCE_MS && best.value > 0) {
+    const best = nearestYoYQuarter(quarters, cur);
+    if (best && best.value > 0) {
       const growth = ((cur.value - best.value) / best.value) * 100;
       points.unshift({ date: cur.date, growth: Math.round(growth * 10) / 10 });
     }
   }
   return points; // oldest -> newest, up to 3
+}
+
+// Latest-quarter YoY growth for EPS specifically, plus a loss→profit flag for
+// when the prior-year quarter was breakeven/negative (in which case a growth
+// % is undefined/misleading — screeners ask for "growth OR turned profitable").
+function computeEpsYoY(quarters) {
+  if (!quarters.length) return { growth: null, turnedProfitable: false };
+  const cur = quarters[quarters.length - 1];
+  const best = nearestYoYQuarter(quarters, cur);
+  if (!best) return { growth: null, turnedProfitable: false };
+  if (best.value > 0) {
+    return { growth: Math.round(((cur.value - best.value) / best.value) * 1000) / 10, turnedProfitable: false };
+  }
+  return { growth: null, turnedProfitable: cur.value > 0 };
 }
 
 // Sequential quarter-over-quarter growth (%) — latest quarter vs the one
@@ -114,6 +134,22 @@ async function fetchTicker(ticker) {
     .filter(Boolean)
     .sort((a, b) => a.date - b.date);
 
+  const epsYoy = computeEpsYoY(epsQuarters);
+
+  // Earnings surprise — optional enrichment via a second, lighter-weight call.
+  // Never let this fail the whole ticker; just omit it if Yahoo balks.
+  let epsSurprisePercent = null;
+  try {
+    await sleep(300); // spread the two calls out instead of firing back-to-back
+    const es = await yf.quoteSummary(ticker, { modules: ['earningsHistory'] }, { validateResult: false });
+    const hist = es?.earningsHistory?.history;
+    const latest = Array.isArray(hist) && hist.length ? hist[hist.length - 1] : null;
+    if (latest && typeof latest.surprisePercent === 'number') {
+      // Yahoo reports this as a fraction (0.052 = +5.2%)
+      epsSurprisePercent = Math.round(latest.surprisePercent * 1000) / 10;
+    }
+  } catch { /* optional — leave epsSurprisePercent null */ }
+
   return {
     data: {
       revenueGrowthYoY: yoy.map(p => p.growth),
@@ -123,6 +159,11 @@ async function fetchTicker(ticker) {
       // Sequential quarter-over-quarter growth — the "Qtr Over Qtr" filter Finviz-style screeners use
       salesGrowthQoQ: computeQoQGrowth(revQuarters),
       epsGrowthQoQ: computeQoQGrowth(epsQuarters),
+      // Latest-quarter YoY EPS growth (or a loss→profit flag when % is undefined)
+      epsGrowthYoY: epsYoy.growth,
+      epsTurnedProfitable: epsYoy.turnedProfitable,
+      // Last reported quarter's beat/miss vs analyst estimate, in % (+ = beat)
+      epsSurprisePercent,
     },
   };
 }

@@ -166,6 +166,17 @@ const PRESETS = [
     },
     groupRankMax: null,
   },
+  {
+    label: '🏆 Growth Momentum Leader',
+    desc:  'Price >$10 · Small-Mid cap $300M–$10B · Avg vol >750K · Sales growth ≥25% · EPS growth ≥30% (or loss→profit) · Beat last earnings · Within 15% of 52w high · RS ≥85 · Above rising 50d & 200d SMA',
+    filters: {
+      priceMin: 10, marketCapMin: 0.3, marketCapMax: 10, avgVolMin: 750000,
+      salesGrowthMin: 25, epsGrowthYoYMin: 30, earningsSurpriseMin: 0.01,
+      distHighMin: -15, distHighMax: 0, rsMin: 85,
+      distSma50Min: 0, distSma200Min: 0, smaTrendUpOnly: true,
+    },
+    groupRankMax: null,
+  },
 ];
 
 const DEFAULT_FILTERS = {
@@ -190,6 +201,8 @@ const DEFAULT_FILTERS = {
   salesGrowthQoQMin: '', salesGrowthQoQMax: '', epsGrowthQoQMin: '', epsGrowthQoQMax: '',
   dist20dHighMin: '', dist20dHighMax: '', dist20dLowMin: '', dist20dLowMax: '',
   dist50dHighMin: '', dist50dHighMax: '', dist50dLowMin: '', dist50dLowMax: '',
+  epsGrowthYoYMin: '', epsGrowthYoYMax: '', earningsSurpriseMin: '', earningsSurpriseMax: '',
+  smaTrendUpOnly: false,
 };
 
 // Build static sector lookup
@@ -243,6 +256,16 @@ function applyFilters(stocks, f, groupRankMax, tickerGroupRank) {
     if (!pass(s.dist20dLow,      'dist20dLowMin',     'dist20dLowMax',     f)) return false;
     if (!pass(s.dist50dHigh,     'dist50dHighMin',    'dist50dHighMax',    f)) return false;
     if (!pass(s.dist50dLow,      'dist50dLowMin',     'dist50dLowMax',     f)) return false;
+    // EPS YoY growth OR turned-profitable (loss -> profit) — a plain min/max
+    // pair can't express "OR", so this one gets its own check.
+    const epsGrowthMin = n(f.epsGrowthYoYMin);
+    if (epsGrowthMin != null) {
+      const meetsGrowth = (s.epsGrowthYoY != null && s.epsGrowthYoY >= epsGrowthMin) || s.epsTurnedProfitable;
+      if (!meetsGrowth) return false;
+    }
+    if (n(f.epsGrowthYoYMax) != null && (s.epsGrowthYoY == null || s.epsGrowthYoY > n(f.epsGrowthYoYMax))) return false;
+    if (!pass(s.epsSurprisePercent, 'earningsSurpriseMin', 'earningsSurpriseMax', f)) return false;
+    if (f.smaTrendUpOnly && !(s.sma50Rising && s.sma200Rising)) return false;
     if (!pass(s.volBuzz,         'volBuzzMin',        'volBuzzMax',        f)) return false;
     if (!pass(s.avgVolume,       'avgVolMin',         'avgVolMax',         f)) return false;
     if (!pass(s.volume,          'volumeMin',         'volumeMax',         f)) return false;
@@ -660,6 +683,8 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       dist20dLow: h?.dist20dLow ?? null,
       dist50dHigh: h?.dist50dHigh ?? null,
       dist50dLow: h?.dist50dLow ?? null,
+      sma50Rising: h?.sma50Rising ?? null,
+      sma200Rising: h?.sma200Rising ?? null,
       w1: s.w1 ?? h?.r1w ?? null,
       m1: s.m1 ?? h?.r1m ?? null,
       m3: s.m3 ?? h?.r3m ?? null,
@@ -667,6 +692,9 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       salesGrowthYoY: sg?.latestGrowth ?? null,
       salesGrowthQoQ: sg?.salesGrowthQoQ ?? null,
       epsGrowthQoQ: sg?.epsGrowthQoQ ?? null,
+      epsGrowthYoY: sg?.epsGrowthYoY ?? null,
+      epsTurnedProfitable: sg?.epsTurnedProfitable ?? false,
+      epsSurprisePercent: sg?.epsSurprisePercent ?? null,
       salesGrowthSeries: sg?.revenueGrowthYoY ?? null,
     };
   }), [stocksByTicker, histData, salesGrowthData]);
@@ -877,6 +905,8 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
                 <RangeRow label="Sales Growth YoY (%)" minKey="salesGrowthMin" maxKey="salesGrowthMax" {...sf} note="latest quarter · daily-cached" />
                 <RangeRow label="Sales Growth QoQ (%)" minKey="salesGrowthQoQMin" maxKey="salesGrowthQoQMax" {...sf} note="qtr vs prior qtr" />
                 <RangeRow label="EPS Growth QoQ (%)"   minKey="epsGrowthQoQMin"  maxKey="epsGrowthQoQMax"  {...sf} note="qtr vs prior qtr" />
+                <RangeRow label="EPS Growth YoY (%)"   minKey="epsGrowthYoYMin"  maxKey="epsGrowthYoYMax"  {...sf} note="or loss→profit turn" />
+                <RangeRow label="Earnings Surprise (%)" minKey="earningsSurpriseMin" maxKey="earningsSurpriseMax" {...sf} note="last qtr vs estimate" />
               </FilterGroup>
               <FilterGroup title="Share Structure">
                 <RangeRow label="Shares Outstanding (B)" minKey="sharesOutMin" maxKey="sharesOutMax" {...sf} step="0.1" />
@@ -889,6 +919,15 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
               <FilterGroup title="Moving Averages">
                 <RangeRow label="% from 50-Day SMA"    minKey="distSma50Min"  maxKey="distSma50Max"  {...sf} />
                 <RangeRow label="% from 200-Day SMA"   minKey="distSma200Min" maxKey="distSma200Max" {...sf} />
+                <button
+                  onClick={() => setFilters(f => ({ ...f, smaTrendUpOnly: !f.smaTrendUpOnly }))}
+                  title="Both the 50-day and 200-day SMA are themselves sloping up (not just price above them)"
+                  style={{
+                    marginTop: 6, padding: '5px 12px', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, borderRadius: 6,
+                    border: `1px solid ${filters.smaTrendUpOnly ? '#3b82f6' : 'var(--border)'}`,
+                    background: filters.smaTrendUpOnly ? 'rgba(59,130,246,0.15)' : 'transparent',
+                    color: filters.smaTrendUpOnly ? '#60a5fa' : 'var(--text-muted)', cursor: 'pointer',
+                  }}>📈 50d & 200d SMA Trending Up</button>
               </FilterGroup>
               <FilterGroup title="Price Action">
                 <RangeRow label="Price ($)"            minKey="priceMin"          maxKey="priceMax"          {...sf} step="0.01" />

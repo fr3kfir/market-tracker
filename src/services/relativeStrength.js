@@ -75,6 +75,23 @@ function returnOver(closes, days) {
   return from ? Math.round(((closes[n - 1] - from) / from) * 1000) / 10 : null;
 }
 
+// Is the N-day SMA itself trending up? Compares today's SMA to the same SMA
+// as of `lookback` sessions ago — a real slope check, not just "price above
+// the average" (which only says where price sits, not which way the average
+// is moving).
+function sma(closes, from, window) {
+  let sum = 0;
+  for (let i = from; i < from + window; i++) sum += closes[i];
+  return sum / window;
+}
+function calcSmaRising(closes, window, lookback = 10) {
+  const n = closes.length;
+  if (n < window + lookback) return null;
+  const now = sma(closes, n - window, window);
+  const then = sma(closes, n - window - lookback, window);
+  return now > then;
+}
+
 // ── 10-minute cache (same TTL policy as marketData's ETF history cache) ──
 let _cache = null;
 let _cacheTime = 0;
@@ -156,6 +173,10 @@ export async function fetchRelativeStrengthData(allSymbols) {
     // ADR% — how much the stock actually moves per day (20-day) and per week (5-day)
     entry.adrPct = calcAdrPct(s.highs, s.lows, 20);
     entry.adrPctWeek = calcAdrPct(s.highs, s.lows, 5);
+
+    // Is the 50/200-day SMA itself rising — not just "price above it"
+    entry.sma50Rising = calcSmaRising(s.closes, 50, 10);
+    entry.sma200Rising = calcSmaRising(s.closes, 200, 10);
 
     // Rolling 20-day / 50-day high & low distance — real "new high" breakout detection
     const d20 = calcRollingDist(s.closes, s.highs, s.lows, 20);
