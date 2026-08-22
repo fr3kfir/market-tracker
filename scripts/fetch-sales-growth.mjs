@@ -19,9 +19,9 @@ import { ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from '../src/data/stockUniverse.js'
 const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const OUT_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'data', 'sales-growth.json');
-const CONCURRENCY = 8;
-const RETRY_DELAY_MS = 1500;
-const BATCH_DELAY_MS = 400; // be gentle on Yahoo between batches
+const CONCURRENCY = 4;
+const RETRY_BACKOFF_MS = [2000, 6000, 15000]; // exponential backoff — Yahoo rate-limits bursts hard on this endpoint
+const BATCH_DELAY_MS = 800; // be gentle on Yahoo between batches
 
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const TOLERANCE_MS = 65 * 24 * 60 * 60 * 1000; // +/- ~65 days around the 1-year mark
@@ -77,6 +77,9 @@ function computeQoQGrowth(quarters) {
   return Math.round(((cur.value - prev.value) / prev.value) * 1000) / 10;
 }
 
+// Returns { data } on success or { reason } on a well-formed "nothing to report"
+// result (as opposed to a thrown network/API error) — the reason is tallied in
+// main() so a CI run's log shows exactly where coverage is being lost.
 async function fetchTicker(ticker) {
   const period1 = new Date(Date.now() - 27 * 30 * 24 * 60 * 60 * 1000); // ~27 months back
   const result = await yf.fundamentalsTimeSeries(
@@ -84,7 +87,7 @@ async function fetchTicker(ticker) {
     { period1, type: 'quarterly', module: 'financials' },
     { validateResult: false }
   );
-  if (!Array.isArray(result) || !result.length) return null;
+  if (!Array.isArray(result) || !result.length) return { reason: 'empty-result' };
 
   const revQuarters = result
     .map(entry => {
@@ -95,10 +98,10 @@ async function fetchTicker(ticker) {
     .filter(Boolean)
     .sort((a, b) => a.date - b.date);
 
-  if (revQuarters.length < 5) return null; // need at least 1 YoY comparison
+  if (revQuarters.length < 5) return { reason: 'too-few-revenue-quarters' };
 
   const yoy = computeYoYGrowth(revQuarters);
-  if (yoy.length < 2) return null;
+  if (yoy.length < 2) return { reason: 'too-few-yoy-matches' };
 
   const accelerating = yoy.every((p, i) => i === 0 || p.growth > yoy[i - 1].growth) && yoy[yoy.length - 1].growth > 0;
 
@@ -112,30 +115,30 @@ async function fetchTicker(ticker) {
     .sort((a, b) => a.date - b.date);
 
   return {
-    revenueGrowthYoY: yoy.map(p => p.growth),
-    quarterDates: yoy.map(p => p.date.toISOString().slice(0, 10)),
-    accelerating,
-    latestGrowth: yoy[yoy.length - 1].growth,
-    // Sequential quarter-over-quarter growth — the "Qtr Over Qtr" filter Finviz-style screeners use
-    salesGrowthQoQ: computeQoQGrowth(revQuarters),
-    epsGrowthQoQ: computeQoQGrowth(epsQuarters),
+    data: {
+      revenueGrowthYoY: yoy.map(p => p.growth),
+      quarterDates: yoy.map(p => p.date.toISOString().slice(0, 10)),
+      accelerating,
+      latestGrowth: yoy[yoy.length - 1].growth,
+      // Sequential quarter-over-quarter growth — the "Qtr Over Qtr" filter Finviz-style screeners use
+      salesGrowthQoQ: computeQoQGrowth(revQuarters),
+      epsGrowthQoQ: computeQoQGrowth(epsQuarters),
+    },
   };
 }
 
 async function fetchWithRetry(ticker) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; ; attempt++) {
     try {
       return await fetchTicker(ticker);
     } catch (err) {
-      if (attempt === 0) {
-        await sleep(RETRY_DELAY_MS);
+      if (attempt < RETRY_BACKOFF_MS.length) {
+        await sleep(RETRY_BACKOFF_MS[attempt]);
         continue;
       }
-      console.warn(`  ✗ ${ticker}: ${err.message}`);
-      return null;
+      return { reason: `error: ${err.message}` };
     }
   }
-  return null;
 }
 
 async function main() {
@@ -143,20 +146,23 @@ async function main() {
   console.log(`Fetching quarterly revenue for ${universe.length} tickers...`);
 
   const tickers = {};
+  const reasonCounts = {};
   let done = 0, accelerating = 0;
 
   for (let i = 0; i < universe.length; i += CONCURRENCY) {
     const batch = universe.slice(i, i + CONCURRENCY);
     const results = await Promise.all(batch.map(async t => [t, await fetchWithRetry(t)]));
-    for (const [ticker, data] of results) {
+    for (const [ticker, { data, reason }] of results) {
       if (data) {
         tickers[ticker] = data;
         if (data.accelerating) accelerating++;
+      } else if (reason) {
+        reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
       }
     }
     done += batch.length;
     if (done % 40 === 0 || done === universe.length) {
-      console.log(`  ${done}/${universe.length} processed, ${accelerating} accelerating so far`);
+      console.log(`  ${done}/${universe.length} processed, ${Object.keys(tickers).length} with data so far`);
     }
     await sleep(BATCH_DELAY_MS);
   }
@@ -166,6 +172,7 @@ async function main() {
   await writeFile(OUT_PATH, JSON.stringify(out));
 
   console.log(`✓ Wrote ${Object.keys(tickers).length} tickers (${accelerating} accelerating) to ${OUT_PATH}`);
+  console.log('Failure reasons:', JSON.stringify(reasonCounts, null, 2));
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
