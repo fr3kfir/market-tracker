@@ -101,10 +101,12 @@ function computeQoQGrowth(quarters) {
 // result (as opposed to a thrown network/API error) — the reason is tallied in
 // main() so a CI run's log shows exactly where coverage is being lost.
 async function fetchTicker(ticker) {
-  // Needs ~9 quarters of history to surface 2 YoY-matched points (the "accelerating"
-  // check's floor) even when reporting dates are a bit irregular — 27 months proved too
-  // tight in practice (897 of 902 tickers landed at exactly 1 point, not 2).
-  const period1 = new Date(Date.now() - 40 * 30 * 24 * 60 * 60 * 1000); // ~40 months back
+  // Extending this further doesn't help: verified that Yahoo's fundamentalsTimeSeries
+  // caps out at ~5-6 quarters for the vast majority of tickers regardless of period1
+  // (a 40-month request returned the exact same 5 tickers with 2+ YoY points as 27
+  // months did). "accelerating" needs 2+ YoY-matched points, which needs ~9 clean
+  // quarters — that's a real ceiling on Yahoo's side for most symbols, not this window.
+  const period1 = new Date(Date.now() - 27 * 30 * 24 * 60 * 60 * 1000); // ~27 months back
   const result = await yf.fundamentalsTimeSeries(
     ticker,
     { period1, type: 'quarterly', module: 'financials' },
