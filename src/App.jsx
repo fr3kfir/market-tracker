@@ -18,6 +18,8 @@ import SecFilings from './components/SecFilings';
 import EarningsCalendar from './components/EarningsCalendar';
 import HighLowScanner from './components/HighLowScanner';
 import Positioning from './components/Positioning';
+import PrePostScanner from './components/PrePostScanner';
+import Portfolio from './components/Portfolio';
 import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS, SECTOR_ETF_TO_SECTOR } from './data/stockUniverse';
 import { fetchArielBreadthData } from './services/arielBreadth';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
@@ -173,6 +175,8 @@ const TABS = [
   { key: 'screener', label: 'Screener' },
   { key: 'highs',    label: 'Highs / Lows' },
   { key: 'positioning', label: 'Positioning' },
+  { key: 'prepost',  label: 'Pre/Post Market' },
+  { key: 'portfolio', label: 'Portfolio' },
   { key: 'earnings', label: 'Earnings' },
   { key: 'sec',      label: 'SEC' },
   { key: 'search',   label: 'Search' },
@@ -620,6 +624,12 @@ export default function App() {
         {desktopTab === 'positioning' && (
           <Positioning />
         )}
+        {desktopTab === 'prepost' && (
+          <PrePostScanner symbols={[...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])]} />
+        )}
+        {desktopTab === 'portfolio' && (
+          <Portfolio />
+        )}
         {desktopTab === 'earnings' && (
           <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />
         )}
@@ -666,6 +676,8 @@ export default function App() {
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} clipboard={clipboard} onClip={onClip} />}
         {mobileTab === 'positioning' && <Positioning />}
+        {mobileTab === 'prepost' && <PrePostScanner symbols={[...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])]} />}
+        {mobileTab === 'portfolio' && <Portfolio />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
         {mobileTab === 'sec'      && <SecFilings />}
         {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}

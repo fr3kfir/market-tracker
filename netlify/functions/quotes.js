@@ -7,6 +7,9 @@ const FIELDS = [
   'fiftyDayAverage', 'twoHundredDayAverage',
   'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'shortName', 'longName',
   'sector', 'industry',
+  'marketState', 'regularMarketPreviousClose',
+  'preMarketPrice', 'preMarketChange', 'preMarketChangePercent', 'preMarketTime',
+  'postMarketPrice', 'postMarketChange', 'postMarketChangePercent', 'postMarketTime',
 ].join(',');
 
 async function getAuth() {
