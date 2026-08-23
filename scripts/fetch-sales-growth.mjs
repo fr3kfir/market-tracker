@@ -14,7 +14,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import YahooFinance from 'yahoo-finance2';
-import { ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from '../src/data/stockUniverse.js';
+import { ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS, SMALL_CAP_GROWTH_SYMBOLS } from '../src/data/stockUniverse.js';
 
 const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
@@ -212,7 +212,7 @@ async function fetchWithRetry(ticker) {
 }
 
 async function main() {
-  const universe = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])];
+  const universe = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS, ...SMALL_CAP_GROWTH_SYMBOLS])];
   console.log(`Fetching quarterly revenue for ${universe.length} tickers...`);
 
   const tickers = {};
