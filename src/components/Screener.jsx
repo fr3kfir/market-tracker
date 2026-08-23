@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { SECTOR_STOCKS, INDUSTRY_GROUPS, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS } from '../data/stockUniverse';
+import { SECTOR_STOCKS, INDUSTRY_GROUPS, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS, SMALL_CAP_GROWTH_SYMBOLS } from '../data/stockUniverse';
 import { fetchRelativeStrengthData } from '../services/relativeStrength';
+import { fetchQuotesForSymbols } from '../services/marketData';
 import TickerInfoPopup from './TickerInfoPopup';
 import Sparkline from './Sparkline';
 import TVChart from './TVChart';
@@ -23,7 +24,9 @@ const CHART_RANGES = [
 
 const CHARTS_PER_PAGE = 50; // Pagination
 
-const UNIVERSE_SYMBOLS = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])];
+const UNIVERSE_SYMBOLS = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS, ...SMALL_CAP_GROWTH_SYMBOLS])];
+
+const SMALL_CAP_REFRESH_MS = 60_000; // slower cadence than the site-wide 5s loop — Screener-only fetch
 
 // ADR% color: Ariel only trades names that move — ≥3.5% is tradeable
 const ADR_COLOR = adr => adr >= 5 ? '#a78bfa' : adr >= 3.5 ? '#34d399' : adr >= 2 ? '#f59e0b' : '#f87171';
@@ -681,7 +684,32 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
     return () => { cancelled = true; };
   }, []);
 
-  const allStocks = useMemo(() => Object.values(stocksByTicker).map(s => {
+  // Small/mid-cap supplement — fetched by the Screener alone on a slow
+  // cadence, so small-cap presets (e.g. "KFIR") have real candidates below
+  // the main site-wide universe's >$1B floor without adding load to the
+  // 5-second live refresh every other tab shares.
+  const [smallCapStocks, setSmallCapStocks] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await fetchQuotesForSymbols(SMALL_CAP_GROWTH_SYMBOLS);
+        if (!cancelled) setSmallCapStocks(data);
+      } catch (e) {
+        console.error('Screener small-cap fetch error:', e);
+      }
+    };
+    load();
+    const id = setInterval(load, SMALL_CAP_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const combinedStocksByTicker = useMemo(
+    () => ({ ...smallCapStocks, ...stocksByTicker }),
+    [smallCapStocks, stocksByTicker]
+  );
+
+  const allStocks = useMemo(() => Object.values(combinedStocksByTicker).map(s => {
     const h = histData?.[s.ticker];
     const sg = salesGrowthData?.[s.ticker];
     if (!h && !sg) return s;
@@ -708,7 +736,7 @@ export default function Screener({ stocksByTicker, clipboard, onClip, industryGr
       epsSurprisePercent: sg?.epsSurprisePercent ?? null,
       salesGrowthSeries: sg?.revenueGrowthYoY ?? null,
     };
-  }), [stocksByTicker, histData, salesGrowthData]);
+  }), [combinedStocksByTicker, histData, salesGrowthData]);
   const filtered  = useMemo(
     () => applyFilters(allStocks, filters, groupRankMax, tickerGroupRank),
     [allStocks, filters, groupRankMax, tickerGroupRank]

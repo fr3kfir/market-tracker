@@ -408,6 +408,46 @@ export const SECTOR_ETF_TO_SECTOR = {
   XLC:  'Communication Services',
 };
 
+// ── Small/Mid-Cap Growth Supplement (sub-$1B down to ~$300M) ─────────────
+// The universe above is deliberately capped at >$1B market cap and is
+// refreshed live every 5 seconds site-wide — adding sub-$1B names there
+// would multiply the Yahoo Finance call volume for every open tab. These
+// names exist purely to give small-cap screener presets (e.g. "KFIR",
+// "Small-Cap Growth") real candidates to match against; the Screener fetches
+// this list separately on its own slower cadence (see Screener.jsx), not
+// tied to the site-wide live loop. Hand-curated and not exhaustive — some
+// entries drift above/below the range over time or get acquired, in which
+// case Yahoo simply returns no quote for them and they silently drop out.
+export const SMALL_CAP_GROWTH_SYMBOLS = [
+  // Technology
+  'ASAN','PCOR','FROG','DOMO','BAND','EVBG','SPSC','ALRM','QTWO','JAMF',
+  'PAR','APPS','VRNT','MTLS','AEHR','DAKT','CEVA','LSCC','SITM','IDCC',
+  'VICR','NVMI','CAMT','UCTT','ICHR','COHU','FORM','ACLS','MKSI','ONTO',
+  'KLIC','PLXS','SANM','CTS','ROG','LFUS','DSP','PRO','SEMR','INTA',
+  // Healthcare / Biotech
+  'NARI','RXST','SILK','PRCT','LMAT','OFIX','CERE','PRAX','AXSM','KROS',
+  'RVMD','TGTX','RNA','ACLX','DNLI','ARQT','IMVT','SMMT','FOLD','ARWR',
+  'RARE','IRTC','ATRC','AXNX','MMSI','CLDX','ZYME','LNTH','NVST','PDCO',
+  // Financials
+  'COLB','CVBF','BANC','FFIN','HTLF','CADE','PPBI','HOMB','ABCB','FIBK',
+  'GBCI','UBSI','SFNC','TOWN','LKFN','INDB','WSFS','FULT','NBTB','SASR',
+  'SLQT','PLMR','GSHD','AMSF','BRP',
+  // Consumer Discretionary
+  'BOOT','GOOS','DENN','NDLS','LOCO','BJRI','DINE','ARHS','LZB','HELE',
+  'WOOF','PETQ','FIGS','RVLV','CURV','SCVL','GCO','CATO',
+  // Industrials
+  'MRCY','VSE','OSIS','ATRO','CIR','TRS','ROAD','STRL','IESC','MYRG',
+  'PRIM','GVA','ROCK','APOG','UFPI','SITE','WMS','CSWI','ESAB','DY','MTZ','BRC',
+  // Materials
+  'SXC','HWKN','KWR','NGVT','GPRE','CBT','ASH','FUL','SCL',
+  // Real Estate
+  'SVC','PECO','KRG','BRX','ROIC','AAT','UE','CTO','ALEX','SAFE',
+  // Energy
+  'CRC','CRGY','REI','ESTE','BATL','BRY','KOS','WTI',
+  // Communication Services
+  'CARS','ANGI','TRIP','QNST','EVER',
+];
+
 export const HEAVYWEIGHTS = ['META', 'GOOGL', 'AAPL', 'AMZN', 'MAGS', 'MSFT', 'TSLA', 'NVDA'];
 
 // ETF symbols added to the live quote fetch just for the Monitor tab

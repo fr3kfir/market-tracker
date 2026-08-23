@@ -396,6 +396,18 @@ export async function fetchAllMarketData(sectorStocksMap, themeStocksMap, themeE
   return { breadth, sectorData, stageDist, stageHistory, themeData, industryGroupData, stocksByTicker, hotThemeData };
 }
 
+// ── Fetch + process quotes for an arbitrary symbol list, standalone ───
+// Used by the Screener's small-cap supplement — a slower-cadence fetch
+// decoupled from the site-wide 5-second live loop above. RS is percentile-
+// ranked within this batch only (not blended with the main universe).
+export async function fetchQuotesForSymbols(symbols) {
+  const quotes = await fetchQuotes(symbols);
+  if (!quotes.length) return {};
+  const rsRatings = calcRsRatings(quotes);
+  const processedStocks = quotes.map(q => processQuote(q, rsRatings));
+  return Object.fromEntries(processedStocks.map(s => [s.ticker, s]));
+}
+
 // ── Get leaders for a sector or theme ─────────────────────────────────
 export function getLeaders(name, sectorStocksMap, themeStocksMap, stocksByTicker) {
   const tickers = sectorStocksMap[name] || themeStocksMap[name] || [];
