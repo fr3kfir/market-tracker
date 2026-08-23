@@ -637,7 +637,7 @@ export default function App() {
           <SecFilings />
         )}
         {desktopTab === 'search' && (
-          <StockSearch stocksByTicker={stocksByTicker || {}} />
+          <StockSearch stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />
         )}
         <p className="text-center text-xs font-mono mt-4 pb-4" style={{ color: 'var(--text-faint)' }}>
           Live data via Yahoo Finance · Weinstein Stage Method · S2: Price &gt; 50SMA &gt; 200SMA · S4: Price &lt; 50SMA &lt; 200SMA
@@ -680,7 +680,7 @@ export default function App() {
         {mobileTab === 'portfolio' && <Portfolio />}
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
         {mobileTab === 'sec'      && <SecFilings />}
-        {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} />}
+        {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
       </div>
     </div>
   );
