@@ -27,9 +27,9 @@ const RANGES = [
   { key: '5y', label: '5Y', weeks: 260 },
 ];
 
-const LARGE_COLOR = '#fbbf24'; // Large Specs — yellow
-const COMM_COLOR  = '#f472b6'; // Commercials — pink
-const SMALL_COLOR = '#60a5fa'; // Small Specs — blue
+const LARGE_COLOR = '#60a5fa'; // Large Specs — blue
+const COMM_COLOR  = '#f87171'; // Commercials — red
+const SMALL_COLOR = '#fbbf24'; // Small Specs — yellow
 const OI_COLOR     = '#22c55e'; // Open Interest — green
 
 function fmt(n) {
