@@ -76,7 +76,46 @@ function StockRow({ stock, highlight, activeTf }) {
   );
 }
 
-function GroupTable({ group, searchTicker, stocksMap, historyLoading, activeTf }) {
+// Group's own rank among ALL industry groups (by avg RS) — this is the
+// "is the group/theme leading?" signal, plus its multi-timeframe performance
+// (via proxy ETF history), separate from any one stock's own performance.
+function GroupRankBanner({ groupInfo, totalGroups }) {
+  if (!groupInfo) return null;
+  const pct = totalGroups ? groupInfo.rank / totalGroups : null;
+  const rankColor = pct == null ? 'var(--text-faint)' : pct <= 0.2 ? '#34d399' : pct <= 0.5 ? '#60a5fa' : pct <= 0.8 ? '#f59e0b' : '#f87171';
+  const rankLabel = pct == null ? '' : pct <= 0.2 ? 'Top 20% — leading' : pct <= 0.5 ? 'Above average' : pct <= 0.8 ? 'Below average' : 'Bottom 20% — lagging';
+  const gTFs = [
+    { key: 'change', label: 'Today' },
+    { key: 'w1', label: '1W' },
+    { key: 'm1', label: '1M' },
+    { key: 'm3', label: '3M' },
+    { key: 'ytd', label: 'YTD' },
+  ];
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+      padding: '8px 14px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: rankColor }}>
+          #{groupInfo.rank}{totalGroups ? ` / ${totalGroups}` : ''}
+        </span>
+        <span style={{ fontSize: 10, fontFamily: 'monospace', color: rankColor, fontWeight: 700 }}>{rankLabel}</span>
+        <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace' }}>· avg RS {groupInfo.avgRS}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginLeft: 'auto' }}>
+        {gTFs.map(tf => (
+          <div key={tf.key} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>{tf.label}</div>
+            <PerfBadge value={groupInfo[tf.key]} highlight />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GroupTable({ group, searchTicker, stocksMap, historyLoading, activeTf, groupInfo, totalGroups }) {
   const stocks = group.tickers
     .map(t => stocksMap[t] || { ticker: t })
     .sort((a, b) => (b[activeTf] ?? -999) - (a[activeTf] ?? -999));
@@ -84,6 +123,7 @@ function GroupTable({ group, searchTicker, stocksMap, historyLoading, activeTf }
   const advancing = stocks.filter(s => (s.change ?? 0) > 0).length;
   const declining = stocks.filter(s => (s.change ?? 0) < 0).length;
   const avgChange = stocks.filter(s => s.change != null).reduce((sum, s) => sum + s.change, 0) / (stocks.filter(s => s.change != null).length || 1);
+  const tickerRank = stocks.findIndex(s => s.ticker === searchTicker) + 1;
 
   return (
     <div style={{
@@ -104,6 +144,11 @@ function GroupTable({ group, searchTicker, stocksMap, historyLoading, activeTf }
           <span style={{ marginLeft: 8, fontSize: 10, fontFamily: 'monospace', background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '2px 7px', borderRadius: 20 }}>
             {group.sector}
           </span>
+          {tickerRank > 0 && (
+            <span style={{ marginLeft: 8, fontSize: 10, fontFamily: 'monospace', color: 'var(--text-faint)' }}>
+              {searchTicker} ranked #{tickerRank} of {stocks.length} in this group
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: 'monospace', alignItems: 'center' }}>
           <span style={{ color: '#34d399' }}>▲ {advancing}</span>
@@ -116,6 +161,8 @@ function GroupTable({ group, searchTicker, stocksMap, historyLoading, activeTf }
           )}
         </div>
       </div>
+      {/* Group's own rank + multi-timeframe performance vs all other groups */}
+      <GroupRankBanner groupInfo={groupInfo} totalGroups={totalGroups} />
       {/* Table */}
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
@@ -172,7 +219,7 @@ const TICKER_LOOKUP = buildLookup();
 
 const ALL_TICKERS = Object.keys(TICKER_LOOKUP).sort();
 
-export default function StockSearch({ stocksByTicker }) {
+export default function StockSearch({ stocksByTicker, industryGroupData = [] }) {
   const [input, setInput] = useState('');
   const [searched, setSearched] = useState('');
   const [activeTf, setActiveTf] = useState('change');
@@ -197,6 +244,12 @@ export default function StockSearch({ stocksByTicker }) {
     if (!info) return [];
     return INDUSTRY_GROUPS.filter(g => info.groups.includes(g.name));
   }, [info]);
+
+  // Group's own rank/performance vs every other tracked group (avgRS-based)
+  const groupDataByName = useMemo(
+    () => Object.fromEntries(industryGroupData.map(g => [g.name, g])),
+    [industryGroupData]
+  );
 
   // Merged map: enriched takes priority over base
   const stocksMap = useMemo(() => ({ ...stocksByTicker, ...enrichedMap }), [stocksByTicker, enrichedMap]);
@@ -644,6 +697,8 @@ export default function StockSearch({ stocksByTicker }) {
                   stocksMap={stocksMap}
                   historyLoading={historyLoading}
                   activeTf={activeTf}
+                  groupInfo={groupDataByName[group.name]}
+                  totalGroups={industryGroupData.length}
                 />
               ))}
             </>
