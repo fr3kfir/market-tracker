@@ -27,9 +27,9 @@ const RANGES = [
   { key: '5y', label: '5Y', weeks: 260 },
 ];
 
-const LARGE_COLOR = '#fbbf24'; // Large Specs — yellow
-const COMM_COLOR  = '#f472b6'; // Commercials — pink
-const SMALL_COLOR = '#60a5fa'; // Small Specs — blue
+const LARGE_COLOR = '#60a5fa'; // Large Specs — blue
+const COMM_COLOR  = '#f87171'; // Commercials — red
+const SMALL_COLOR = '#fbbf24'; // Small Specs — yellow
 const OI_COLOR     = '#22c55e'; // Open Interest — green
 
 function fmt(n) {
@@ -86,16 +86,24 @@ function LegendRow({ label, color, net }) {
 
 export default function Positioning() {
   const [contract, setContract] = useState('ES');
+  const [customName, setCustomName] = useState(null); // exact CFTC market name, when searching any ticker
   const [range, setRange] = useState('1y');
   const [rows, setRows] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const load = useCallback(async (key) => {
+  // Free-text search over every CFTC-listed contract, not just the presets above
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const load = useCallback(async ({ key, custom }) => {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`/api/cot?contract=${key}`);
+      const url = custom ? `/api/cot?custom=${encodeURIComponent(custom)}` : `/api/cot?contract=${key}`;
+      const r = await fetch(url);
       if (!r.ok) throw new Error(`API ${r.status}`);
       const data = await r.json();
       if (data.error) throw new Error(data.error);
@@ -108,12 +116,44 @@ export default function Positioning() {
     }
   }, []);
 
-  useEffect(() => { load(contract); }, [contract, load]);
+  useEffect(() => {
+    load(customName ? { custom: customName } : { key: contract });
+  }, [contract, customName, load]);
+
+  // Debounced typeahead against every CFTC-listed market name
+  useEffect(() => {
+    if (!query.trim()) { setSuggestions([]); return; }
+    setSearching(true);
+    const id = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/cot?q=${encodeURIComponent(query.trim())}`);
+        const data = await r.json();
+        setSuggestions(data.names || []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => clearTimeout(id);
+  }, [query]);
+
+  const pickPreset = useCallback((key) => {
+    setContract(key);
+    setCustomName(null);
+    setQuery('');
+  }, []);
+
+  const pickCustom = useCallback((name) => {
+    setCustomName(name);
+    setQuery(name);
+    setShowSuggestions(false);
+  }, []);
 
   const weeks = RANGES.find(r => r.key === range)?.weeks ?? 52;
   const data = useMemo(() => (rows || []).slice(-weeks), [rows, weeks]);
   const latest = data.length ? data[data.length - 1] : null;
-  const contractLabel = CONTRACTS.find(c => c.key === contract)?.label || contract;
+  const contractLabel = customName || CONTRACTS.find(c => c.key === contract)?.label || contract;
 
   return (
     <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
@@ -130,10 +170,10 @@ export default function Positioning() {
             {contractLabel} · Net Positioning
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <select
-            value={contract}
-            onChange={e => setContract(e.target.value)}
+            value={customName ? '' : contract}
+            onChange={e => pickPreset(e.target.value)}
             style={{
               fontSize: 11, fontWeight: 600, padding: '5px 8px', borderRadius: 7,
               border: '1px solid var(--border)', background: 'var(--bg-elevated)',
@@ -142,6 +182,46 @@ export default function Positioning() {
           >
             {CONTRACTS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
           </select>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setCustomName(null); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Search any ticker/contract…"
+              style={{
+                fontSize: 11, fontWeight: 600, padding: '5px 8px', borderRadius: 7,
+                border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                color: 'var(--text)', width: 200,
+              }}
+            />
+            {showSuggestions && query.trim() && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
+                background: 'var(--bg-elevated)', border: '1px solid var(--border-hi)',
+                borderRadius: 8, maxHeight: 240, overflowY: 'auto', zIndex: 30,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+              }}>
+                {searching && (
+                  <div style={{ padding: '8px 10px', fontSize: 10, color: 'var(--text-faint)' }}>Searching…</div>
+                )}
+                {!searching && suggestions.map(name => (
+                  <div
+                    key={name}
+                    className="clickable-row"
+                    onMouseDown={() => pickCustom(name)}
+                    style={{ padding: '7px 10px', fontSize: 11, color: 'var(--text)', cursor: 'pointer' }}
+                  >
+                    {name}
+                  </div>
+                ))}
+                {!searching && suggestions.length === 0 && (
+                  <div style={{ padding: '8px 10px', fontSize: 10, color: 'var(--text-faint)' }}>No matches</div>
+                )}
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 4 }}>
             {RANGES.map(r => (
               <button

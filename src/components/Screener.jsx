@@ -45,6 +45,15 @@ const PRESETS = [
     groupRankMax: 40,
   },
   {
+    label: '👑 KFIR',
+    desc:  'Market cap $300M+ · Price > $7 · Above 50 & 200-day SMA · 60%+ above 52w low · EPS & Sales growth qtr/qtr ≥25% · Avg volume 100K+',
+    filters: {
+      marketCapMin: 0.3, priceMin: 7, distSma50Min: 0, distSma200Min: 0,
+      distLowMin: 60, epsGrowthQoQMin: 25, salesGrowthQoQMin: 25, avgVolMin: 100000,
+    },
+    groupRankMax: null,
+  },
+  {
     label: '🚀 Accelerating Sales (QoQ)',
     desc:  'Sales growth accelerating for 3 straight quarters (sequential) · S2 · RS ≥ 70 — broader coverage than the strict YoY version, more exposed to seasonal noise',
     filters: { accelGrowthQoQOnly: true, stages: ['S2'], rsMin: 70 },
