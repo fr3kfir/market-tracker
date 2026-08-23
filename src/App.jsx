@@ -517,15 +517,15 @@ export default function App() {
             return (
               <button key={tab.key} onClick={() => handleTabChange(tab.key, setDesktopTab)}
                 style={{
-                  padding: '8px 14px', fontSize: 11, fontWeight: active ? 700 : 500,
-                  color: active ? 'var(--accent)' : 'var(--text-faint)',
+                  padding: '8px 14px', fontSize: 11, fontWeight: active ? 700 : 600,
+                  color: active ? 'var(--accent)' : 'var(--text-muted)',
                   borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
                   background: 'transparent', border: 'none', borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
                   cursor: 'pointer', transition: 'all 0.15s',
                   whiteSpace: 'nowrap', letterSpacing: '0.01em',
                 }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)'; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-faint)'; }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text)'; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)'; }}
               >
                 {tab.label}
               </button>
@@ -540,11 +540,11 @@ export default function App() {
             return (
               <button key={tab.key} onClick={() => handleTabChange(tab.key, setMobileTab)}
                 style={{
-                  flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: active ? 700 : 500,
+                  flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: active ? 700 : 600,
                   background: 'transparent', border: 'none',
                   borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
                   cursor: 'pointer', whiteSpace: 'nowrap',
-                  color: active ? 'var(--accent)' : 'var(--text-faint)',
+                  color: active ? 'var(--accent)' : 'var(--text-muted)',
                 }}>
                 {tab.label}
               </button>

@@ -32,6 +32,60 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function soqlEscape(s) {
+  return s.replace(/'/g, "''");
+}
+
+function mapCotRows(raw) {
+  return raw.map(row => {
+    const largeLong  = num(row.noncomm_positions_long_all);
+    const largeShort = num(row.noncomm_positions_short_all);
+    const commLong   = num(row.comm_positions_long_all);
+    const commShort  = num(row.comm_positions_short_all);
+    const smallLong   = num(row.nonrept_positions_long_all);
+    const smallShort  = num(row.nonrept_positions_short_all);
+    return {
+      date: row.report_date_as_yyyy_mm_dd?.slice(0, 10),
+      largeSpecsLong: largeLong, largeSpecsShort: largeShort, largeSpecsNet: largeLong - largeShort,
+      commercialsLong: commLong, commercialsShort: commShort, commercialsNet: commLong - commShort,
+      smallSpecsLong: smallLong, smallSpecsShort: smallShort, smallSpecsNet: smallLong - smallShort,
+      openInterest: num(row.open_interest_all),
+    };
+  }).filter(r => r.date);
+}
+
+// Free-text lookup of any CFTC-listed market name — lets the UI offer every
+// ticker in the dataset, not just the curated CONTRACTS presets above.
+async function searchContractNames(term) {
+  const q = term.trim();
+  if (!q) return [];
+  const where = `upper(market_and_exchange_names) like upper('%25${encodeURIComponent(soqlEscape(q))}%25')`;
+  const url = `${COT_BASE}?$select=market_and_exchange_names&$where=${where}&$group=market_and_exchange_names&$order=market_and_exchange_names ASC&$limit=20`;
+  const r = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error(`CFTC API ${r.status}`);
+  const raw = await r.json();
+  return raw.map(row => row.market_and_exchange_names).filter(Boolean);
+}
+
+async function fetchCotRowsByName(name) {
+  const cacheKey = `custom:${name}`;
+  const now = Date.now();
+  if (_cache[cacheKey] && (now - _cache[cacheKey].ts) < TTL_MS) {
+    return _cache[cacheKey].rows;
+  }
+
+  const where = `market_and_exchange_names='${soqlEscape(name)}'`;
+  const url = `${COT_BASE}?$where=${encodeURIComponent(where)}&$order=report_date_as_yyyy_mm_dd ASC&$limit=300`;
+
+  const r = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error(`CFTC API ${r.status}`);
+  const raw = await r.json();
+  const rows = mapCotRows(raw);
+
+  _cache[cacheKey] = { ts: now, rows };
+  return rows;
+}
+
 async function fetchCotRows(contractKey) {
   const def = CONTRACTS[contractKey];
   if (!def) return null;
@@ -59,21 +113,7 @@ async function fetchCotRows(contractKey) {
   const primaryName = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
   const filtered = primaryName ? raw.filter(row => row.market_and_exchange_names === primaryName) : raw;
 
-  const rows = filtered.map(row => {
-    const largeLong  = num(row.noncomm_positions_long_all);
-    const largeShort = num(row.noncomm_positions_short_all);
-    const commLong   = num(row.comm_positions_long_all);
-    const commShort  = num(row.comm_positions_short_all);
-    const smallLong   = num(row.nonrept_positions_long_all);
-    const smallShort  = num(row.nonrept_positions_short_all);
-    return {
-      date: row.report_date_as_yyyy_mm_dd?.slice(0, 10),
-      largeSpecsLong: largeLong, largeSpecsShort: largeShort, largeSpecsNet: largeLong - largeShort,
-      commercialsLong: commLong, commercialsShort: commShort, commercialsNet: commLong - commShort,
-      smallSpecsLong: smallLong, smallSpecsShort: smallShort, smallSpecsNet: smallLong - smallShort,
-      openInterest: num(row.open_interest_all),
-    };
-  }).filter(r => r.date);
+  const rows = mapCotRows(filtered);
 
   _cache[contractKey] = { ts: now, rows };
   return rows;
@@ -83,6 +123,26 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const { q, custom } = req.query;
+
+  if (typeof q === 'string') {
+    try {
+      const names = await searchContractNames(q);
+      return res.status(200).json({ names });
+    } catch (err) {
+      return res.status(502).json({ error: err.message });
+    }
+  }
+
+  if (typeof custom === 'string' && custom.trim()) {
+    try {
+      const rows = await fetchCotRowsByName(custom.trim());
+      return res.status(200).json({ contract: custom.trim(), label: custom.trim(), rows });
+    } catch (err) {
+      return res.status(502).json({ error: err.message });
+    }
+  }
 
   const contract = (req.query.contract || 'ES').toUpperCase();
 
