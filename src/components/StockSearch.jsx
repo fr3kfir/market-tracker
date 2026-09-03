@@ -269,6 +269,22 @@ export default function StockSearch({ stocksByTicker, industryGroupData = [] }) 
     }
   }, [stocksByTicker]);
 
+  // For tickers we already have live data for (e.g. theme-only tickers like
+  // RELY that aren't in any SECTOR_STOCKS/INDUSTRY_GROUPS entry, so they have
+  // no TICKER_LOOKUP info) — reuse that data instead of re-fetching from Yahoo.
+  const loadLocalStock = useCallback(async (stock) => {
+    setUnknownLoading(true);
+    setUnknownStock(stock);
+    try {
+      const enriched = await enrichWithHistory([stock]);
+      setUnknownStock(enriched[0] || stock);
+    } catch {
+      // keep the base stock — history enrichment is optional
+    } finally {
+      setUnknownLoading(false);
+    }
+  }, []);
+
   const loadUnknownStock = useCallback(async (t) => {
     setUnknownLoading(true);
     setUnknownStock(null);
@@ -322,7 +338,12 @@ export default function StockSearch({ stocksByTicker, industryGroupData = [] }) 
 
     const inf = TICKER_LOOKUP[ticker];
     if (!inf) {
-      if (!stocksByTicker[ticker]) loadUnknownStock(ticker);
+      const local = stocksByTicker[ticker];
+      if (local) {
+        loadLocalStock(local);
+      } else {
+        loadUnknownStock(ticker);
+      }
       return;
     }
     const groups = INDUSTRY_GROUPS.filter(g => inf.groups.includes(g.name));
