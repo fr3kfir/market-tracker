@@ -198,7 +198,7 @@ export const THEME_ETFS = {
 // ── Industry Sub-Groups (IBD-style, >$1B market cap only) ────────────────────
 export const INDUSTRY_GROUPS = [
   // ── Technology — Semiconductors ──
-  { name: 'Semis — AI / GPU',       sector: 'Technology',             tickers: ['NVDA','AMD','MRVL','AVGO','ARM','QCOM','INTC','MPWR','SMCI','ALAB','ASML','TSM','LSCC','CEVA','HIMX','ATEN','MU','ON','NXPI','ADI','TXN','KLAC','AMAT','LRCX','ENTG','ONTO','AMKR','COHR','WOLF'] },
+  { name: 'Semis — AI / GPU',       sector: 'Technology',             tickers: ['NVDA','AMD','MRVL','AVGO','ARM','QCOM','INTC','MPWR','SMCI','ALAB','ASML','TSM','LSCC','CEVA','HIMX','ATEN','AMBA','MU','ON','NXPI','ADI','TXN','KLAC','AMAT','LRCX','ENTG','ONTO','AMKR','COHR','WOLF'] },
   { name: 'Semis — Memory',         sector: 'Technology',             tickers: ['MU','WDC','STX','NTAP','PSTG','CRUS','RMBS','NXPI','MCHP','ADI','LRCX','KLAC','AMAT','UCTT','FORM','ONTO','ICHR','NVDA','AMD'] },
   { name: 'Semis — Equipment',      sector: 'Technology',             tickers: ['AMAT','KLAC','LRCX','ENTG','ONTO','ACLS','FORM','MKSI','UCTT','ICHR','CAMT','AMKR','COHU','AEIS','NVMI','KLIC','ASML','NVDA','AMD','SMCI','IPGP','ACMR','ARM'] },
   { name: 'Semis — Analog',         sector: 'Technology',             tickers: ['TXN','ADI','MCHP','ON','SWKS','QRVO','NXPI','SLAB','SITM','IOSP','DIOD','MTSI','ALGM','POWI','MPWR','QCOM','AVGO','SMSC','INTF','IXYS','NVDA'] },
@@ -209,8 +209,8 @@ export const INDUSTRY_GROUPS = [
   { name: 'Software — Security',    sector: 'Technology',             tickers: ['CRWD','PANW','FTNT','ZS','CYBR','S','OKTA','CHKP','NET','TENB','QLYS','VRNS','RBRK','CSCO','RPD','SAIL','SAIC','LDOS','CACI','CWAN','MNDT','FEYE','SCWX','ISTR','OSPN'] },
   { name: 'Software — Cloud Infra', sector: 'Technology',             tickers: ['SNOW','MDB','DDOG','TEAM','GTLB','NET','TWLO','CFLT','PD','DBX','BOX','HUBS','ESTC','PURE','NTNX','DOCN','CLDR','FSLY','AMPL','BRZE','SUMO','NCNO','TOST','MNDY'] },
   { name: 'Software — DevOps',      sector: 'Technology',             tickers: ['FROG','GTLB','TEAM','DBTX','SMAR','MNDY','PCOR','ASAN','IOT','DDOG','NET','AMPL','BRZE','TOST','PD'] },
-  { name: 'Software — AI / Data',   sector: 'Technology',             tickers: ['PLTR','AI','PATH','AMBA','RBRK','ANET','KVYO','ASAN','APP','TTD','MGNI','DV','ZETA','UPST','BBAI','SOUN','IONQ','NBIS','QUBT','QBTS','RGTI','MSFT','GOOGL','META','NVDA','IBM'] },
-  { name: 'Software — SMB / Vert.', sector: 'Technology',             tickers: ['BILL','VEEV','ZI','APPF','HUBS','PCOR','MNDY','TOST','TASK','BAND','EVBG','SPSC','PAR','XPEL','ALRM','QTWO','JAMF','SMAR','ACMR','DBTX','AVEYA','PERI','FOUR','NTNX'] },
+  { name: 'Software — AI Platforms',sector: 'Technology',             tickers: ['PLTR','AI','PATH','BBAI','SOUN'] },
+  { name: 'Software — SMB / Vert.', sector: 'Technology',             tickers: ['BILL','VEEV','ZI','APPF','HUBS','PCOR','MNDY','TOST','TASK','BAND','EVBG','SPSC','PAR','XPEL','ALRM','QTWO','JAMF','SMAR','ACMR','DBTX','AVEYA','PERI','FOUR','NTNX','KVYO'] },
   { name: 'Hardware — Networking',  sector: 'Technology',             tickers: ['CSCO','ANET','VIAV','CIEN','CALX','LITE','COHR','ADTN','INFN','FFIV','JNPR','EXTR','NTGR','RBBN','CASA','ARLO','SMCI','HPE','DELL','NVDA','MRVL','AVGO'] },
   { name: 'Hardware — Servers',     sector: 'Technology',             tickers: ['DELL','HPE','NTAP','SMCI','PSTG','HPQ','WDC','NTNX','PURE','NVDA','AMD','ALAB','VRT','ARM','AAPL','MSFT','AVGO','MRVL','INTC','QCOM','IBM'] },
   { name: 'IT Services / Consult',  sector: 'Technology',             tickers: ['ACN','IBM','CTSH','EPAM','WIT','INFY','GLOB','CACI','SAIC','LDOS','DXC','UNISYS','KFRC','EXLS','NSIT','ASGN','HCKT','ICFI','PSNL'] },
@@ -300,8 +300,8 @@ const _HOT_THEMES_RAW = [
   // ── Semiconductors (broad) ──
   { name: 'Semiconductors',          etf: 'SOXX',  groups: ['Semis — AI / GPU', 'Semis — Memory', 'Semis — Equipment', 'Semis — Analog', 'Semis — Optics / Laser', 'Semis — Power'] },
   // ── AI & Compute ──
-  { name: 'AI Infrastructure',       etf: 'AIQ',   groups: ['Semis — AI / GPU', 'Hardware — Servers', 'Software — AI / Data', 'AI Data Centers'] },
-  { name: 'AI Software',             etf: 'AIQ',   groups: ['Software — AI / Data', 'Software — Enterprise', 'Software — Cloud Infra'] },
+  { name: 'AI Infrastructure',       etf: 'AIQ',   groups: ['Semis — AI / GPU', 'Hardware — Servers', 'Software — AI Platforms', 'AI Data Centers'] },
+  { name: 'AI Software',             etf: 'AIQ',   groups: ['Software — AI Platforms', 'Software — Enterprise', 'Software — Cloud Infra'] },
   { name: 'Semis — Equipment',       etf: 'SOXX',  groups: ['Semis — Equipment'] },
   { name: 'Optics & Lasers',         etf: 'SOXX',  groups: ['Semis — Optics / Laser'] },
   { name: 'Semis — Analog & Power',  etf: 'SOXX',  groups: ['Semis — Analog', 'Semis — Power'] },
