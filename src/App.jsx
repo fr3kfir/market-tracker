@@ -7,6 +7,7 @@ import ThemeTracker from './components/ThemeTracker';
 import LeadersView from './components/LeadersView';
 import IndustryGroups from './components/IndustryGroups';
 import ThemeDashboard from './components/ThemeDashboard';
+import ETFTracker from './components/ETFTracker';
 import ArielDashboard from './components/ArielDashboard';
 import LeadersLaggards from './components/LeadersLaggards';
 import MarketMonitor from './components/MarketMonitor';
@@ -172,6 +173,7 @@ const TABS = [
   { key: 'groups',   label: 'Groups' },
   { key: 'sectors',  label: 'Sectors' },
   { key: 'themes',   label: 'Themes' },
+  { key: 'etftracker', label: 'ETF Tracker' },
   { key: 'screener', label: 'Screener' },
   { key: 'highs',    label: 'Highs / Lows' },
   { key: 'positioning', label: 'Positioning' },
@@ -615,6 +617,9 @@ export default function App() {
             onThemeClick={handleHotThemeClick}
           />
         )}
+        {desktopTab === 'etftracker' && (
+          <ETFTracker hotThemeData={hotThemeData} onThemeClick={handleHotThemeClick} />
+        )}
         {desktopTab === 'screener' && (
           <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />
         )}
@@ -673,6 +678,7 @@ export default function App() {
             onThemeClick={handleHotThemeClick}
           />
         )}
+        {mobileTab === 'etftracker' && <ETFTracker hotThemeData={hotThemeData} onThemeClick={handleHotThemeClick} />}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} clipboard={clipboard} onClip={onClip} />}
         {mobileTab === 'positioning' && <Positioning />}
