@@ -455,3 +455,82 @@ export const MONITOR_ETF_SYMBOLS = [...SECTOR_ETFS.map(s => s.sym), 'MAGS'];
 
 export const SECTORS = Object.keys(SECTOR_STOCKS);
 export const THEMES = Object.keys(THEME_STOCKS);
+
+// ── ETF Tracker: Group ETFs (thematic / industry) ──────────────────────
+export const GROUP_ETFS = [
+  { sym: 'HACK', name: 'Amplify Cybersecurity ETF' },
+  { sym: 'CIBR', name: 'First Trust NASDAQ Cybersecurity ETF' },
+  { sym: 'SOXX', name: 'iShares Semiconductor ETF' },
+  { sym: 'SMH',  name: 'VanEck Semiconductor ETF' },
+  { sym: 'SKYY', name: 'First Trust Cloud Computing ETF' },
+  { sym: 'WCLD', name: 'WisdomTree Cloud Computing ETF' },
+  { sym: 'CLOU', name: 'Global X Cloud Computing ETF' },
+  { sym: 'IGV',  name: 'iShares Expanded Tech-Software Sector ETF' },
+  { sym: 'XSW',  name: 'State Street SPDR S&P Software & Services ETF' },
+  { sym: 'ARKK', name: 'ARK Innovation ETF' },
+  { sym: 'ARKG', name: 'ARK Genomic Revolution ETF' },
+  { sym: 'ARKF', name: 'ARK Fintech Innovation ETF' },
+  { sym: 'IBB',  name: 'iShares Biotechnology ETF' },
+  { sym: 'XBI',  name: 'SPDR S&P Biotech ETF' },
+  { sym: 'IHI',  name: 'iShares U.S. Medical Devices ETF' },
+  { sym: 'ITA',  name: 'iShares U.S. Aerospace & Defense ETF' },
+  { sym: 'XAR',  name: 'SPDR S&P Aerospace & Defense ETF' },
+  { sym: 'ICLN', name: 'iShares Global Clean Energy ETF' },
+  { sym: 'TAN',  name: 'Invesco Solar ETF' },
+  { sym: 'LIT',  name: 'Global X Lithium & Battery Tech ETF' },
+  { sym: 'URA',  name: 'Global X Uranium ETF' },
+  { sym: 'GDX',  name: 'VanEck Gold Miners ETF' },
+  { sym: 'SILJ', name: 'ETFMG Prime Junior Silver Miners ETF' },
+  { sym: 'JETS', name: 'U.S. Global Jets ETF' },
+  { sym: 'XRT',  name: 'SPDR S&P Retail ETF' },
+  { sym: 'ITB',  name: 'iShares U.S. Home Construction ETF' },
+  { sym: 'KBE',  name: 'SPDR S&P Bank ETF' },
+  { sym: 'KRE',  name: 'SPDR S&P Regional Banking ETF' },
+  { sym: 'IAI',  name: 'iShares U.S. Broker-Dealers ETF' },
+  { sym: 'BITO', name: 'ProShares Bitcoin Strategy ETF' },
+  { sym: 'MSOS', name: 'AdvisorShares Pure US Cannabis ETF' },
+  { sym: 'BOTZ', name: 'Global X Robotics & AI ETF' },
+];
+
+// ── ETF Tracker: S&P Sector SPDRs (GICS sectors, excl. SPY benchmark) ──
+export const SP_SECTOR_ETFS = SECTOR_ETFS.filter(e => e.sym !== 'SPY');
+
+// ── ETF Tracker: Equal-Weight Sector ETFs (Invesco RSP family) ─────────
+export const EQUAL_WEIGHT_ETFS = [
+  { sym: 'RSP',  name: 'Invesco S&P 500 Equal Weight ETF' },
+  { sym: 'RSPT', name: 'Invesco S&P 500 Equal Weight Technology ETF' },
+  { sym: 'RSPF', name: 'Invesco S&P 500 Equal Weight Financials ETF' },
+  { sym: 'RSPH', name: 'Invesco S&P 500 Equal Weight Health Care ETF' },
+  { sym: 'RSPD', name: 'Invesco S&P 500 Equal Weight Consumer Discretionary ETF' },
+  { sym: 'RSPS', name: 'Invesco S&P 500 Equal Weight Consumer Staples ETF' },
+  { sym: 'RSPU', name: 'Invesco S&P 500 Equal Weight Utilities ETF' },
+  { sym: 'RSPM', name: 'Invesco S&P 500 Equal Weight Materials ETF' },
+  { sym: 'RSPN', name: 'Invesco S&P 500 Equal Weight Industrials ETF' },
+  { sym: 'RSPC', name: 'Invesco S&P 500 Equal Weight Communication Services ETF' },
+  { sym: 'RSPR', name: 'Invesco S&P 500 Equal Weight Real Estate ETF' },
+  { sym: 'RSPG', name: 'Invesco S&P 500 Equal Weight Energy ETF' },
+];
+
+// ── ETF Tracker: Country ETFs (iShares MSCI single-country) ────────────
+export const COUNTRY_ETFS = [
+  { sym: 'EWJ',  name: 'iShares MSCI Japan ETF' },
+  { sym: 'FXI',  name: 'iShares China Large-Cap ETF' },
+  { sym: 'EWZ',  name: 'iShares MSCI Brazil ETF' },
+  { sym: 'EWY',  name: 'iShares MSCI South Korea ETF' },
+  { sym: 'INDA', name: 'iShares MSCI India ETF' },
+  { sym: 'EWG',  name: 'iShares MSCI Germany ETF' },
+  { sym: 'EWU',  name: 'iShares MSCI United Kingdom ETF' },
+  { sym: 'EWC',  name: 'iShares MSCI Canada ETF' },
+  { sym: 'EWA',  name: 'iShares MSCI Australia ETF' },
+  { sym: 'EWT',  name: 'iShares MSCI Taiwan ETF' },
+  { sym: 'EWH',  name: 'iShares MSCI Hong Kong ETF' },
+  { sym: 'EWW',  name: 'iShares MSCI Mexico ETF' },
+  { sym: 'EWS',  name: 'iShares MSCI Singapore ETF' },
+  { sym: 'EIDO', name: 'iShares MSCI Indonesia ETF' },
+  { sym: 'EWI',  name: 'iShares MSCI Italy ETF' },
+  { sym: 'EWP',  name: 'iShares MSCI Spain ETF' },
+  { sym: 'EWQ',  name: 'iShares MSCI France ETF' },
+  { sym: 'EWL',  name: 'iShares MSCI Switzerland ETF' },
+  { sym: 'EZA',  name: 'iShares MSCI South Africa ETF' },
+  { sym: 'VNM',  name: 'VanEck Vietnam ETF' },
+];
