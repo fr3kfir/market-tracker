@@ -17,11 +17,13 @@ import ClipboardPanel from './components/ClipboardPanel';
 import SecFilings from './components/SecFilings';
 import EarningsCalendar from './components/EarningsCalendar';
 import HighLowScanner from './components/HighLowScanner';
+import HighLowChart from './components/HighLowChart';
 import Positioning from './components/Positioning';
 import PrePostScanner from './components/PrePostScanner';
 import Portfolio from './components/Portfolio';
 import { SECTOR_STOCKS, THEME_STOCKS, THEME_ETFS, INDUSTRY_GROUPS, HOT_THEMES, ALL_SYMBOLS, ALL_INDUSTRY_SYMBOLS, SECTOR_ETF_TO_SECTOR } from './data/stockUniverse';
 import { fetchArielBreadthData } from './services/arielBreadth';
+import { fetchHighLowHistory } from './services/highLowHistory';
 import { fetchAllMarketData, getLeaders, enrichWithHistory } from './services/marketData';
 import './index.css';
 
@@ -174,6 +176,7 @@ const TABS = [
   { key: 'themes',   label: 'Themes' },
   { key: 'screener', label: 'Screener' },
   { key: 'highs',    label: 'Highs / Lows' },
+  { key: 'nhnl',     label: 'NH vs NL' },
   { key: 'positioning', label: 'Positioning' },
   { key: 'prepost',  label: 'Pre/Post Market' },
   { key: 'portfolio', label: 'Portfolio' },
@@ -329,10 +332,28 @@ export default function App() {
     }
   }, [arielRows, arielLoading]);
 
+  // New 52-week highs vs lows history (loaded on demand)
+  const [nhnlRows, setNhnlRows] = useState(null);
+  const [nhnlLoading, setNhnlLoading] = useState(false);
+
+  const loadHighLowHistory = useCallback(async () => {
+    if (nhnlRows || nhnlLoading) return;
+    setNhnlLoading(true);
+    try {
+      const allSyms = [...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])];
+      setNhnlRows(await fetchHighLowHistory(allSyms));
+    } catch (e) {
+      console.error('Highs vs Lows error:', e);
+    } finally {
+      setNhnlLoading(false);
+    }
+  }, [nhnlRows, nhnlLoading]);
+
   const handleTabChange = useCallback((key, setter) => {
     setter(key);
     if (key === 'ariel') loadArielBreadth();
-  }, [loadArielBreadth]);
+    if (key === 'nhnl') loadHighLowHistory();
+  }, [loadArielBreadth, loadHighLowHistory]);
 
   const handleGroupClick = useCallback(async (group) => {
     const tickers = INDUSTRY_GROUPS.find(g => g.name === group.name)?.tickers || [];
@@ -621,6 +642,9 @@ export default function App() {
         {desktopTab === 'highs' && (
           <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} clipboard={clipboard} onClip={onClip} />
         )}
+        {desktopTab === 'nhnl' && (
+          <HighLowChart rows={nhnlRows} loading={nhnlLoading} />
+        )}
         {desktopTab === 'positioning' && (
           <Positioning />
         )}
@@ -675,6 +699,7 @@ export default function App() {
         )}
         {mobileTab === 'screener' && <Screener stocksByTicker={stocksByTicker || {}} clipboard={clipboard} onClip={onClip} industryGroupData={industryGroupData || []} />}
         {mobileTab === 'highs'    && <HighLowScanner stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} clipboard={clipboard} onClip={onClip} />}
+        {mobileTab === 'nhnl'     && <HighLowChart rows={nhnlRows} loading={nhnlLoading} />}
         {mobileTab === 'positioning' && <Positioning />}
         {mobileTab === 'prepost' && <PrePostScanner symbols={[...new Set([...ALL_SYMBOLS, ...ALL_INDUSTRY_SYMBOLS])]} />}
         {mobileTab === 'portfolio' && <Portfolio />}
