@@ -31,6 +31,12 @@ const SEC_UA = 'MarketTracker contact@market-tracker-seven.vercel.app';
 const SEC_DELAY_MS = 150;          // SEC fair-access limit is 10 req/s
 const FIGI_BATCH = 10;             // OpenFIGI without an API key: 10 jobs/request…
 const FIGI_DELAY_MS = 2600;        // …and 25 requests/minute
+const FIGI_BUDGET_MS = 15 * 60 * 1000; // stop resolving after 15 min; the cache lets the next run continue
+
+// Broad index funds hold hundreds–thousands of names (IWM ≈ 2000) — resolving
+// them dominates the run and adds noise, not insight. They still get the live
+// Yahoo top-10 layer.
+const SKIP_FULL = new Set(['SPY', 'IWM', 'MDY', 'RSP']);
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -91,7 +97,13 @@ function parseNport(xml) {
 async function resolveCusips(cusips, cache) {
   const todo = [...cusips].filter(c => !(c in cache));
   console.log(`OpenFIGI: ${todo.length} new CUSIPs to resolve (${Object.keys(cache).length} cached)`);
+  const start = Date.now();
   for (let i = 0; i < todo.length; i += FIGI_BATCH) {
+    if (Date.now() - start > FIGI_BUDGET_MS) {
+      console.warn(`OpenFIGI: time budget hit at ${i}/${todo.length}; the rest resolve on the next run`);
+      break;
+    }
+    if (i && i % 500 === 0) console.log(`OpenFIGI: ${i}/${todo.length}`);
     const batch = todo.slice(i, i + FIGI_BATCH);
     for (let attempt = 0; attempt < 4; attempt++) {
       const r = await fetch('https://api.openfigi.com/v3/mapping', {
@@ -99,7 +111,7 @@ async function resolveCusips(cusips, cache) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(batch.map(c => ({ idType: 'ID_CUSIP', idValue: c, exchCode: 'US' }))),
       });
-      if (r.status === 429) { await sleep(15000); continue; }
+      if (r.status === 429) { console.warn('OpenFIGI: rate-limited, backing off'); await sleep(15000); continue; }
       if (!r.ok) { console.warn(`OpenFIGI ${r.status}`); break; }
       const res = await r.json();
       batch.forEach((c, j) => {
@@ -118,7 +130,7 @@ async function main() {
   const funds = await loadFundDirectory();
 
   const raw = {};
-  for (const etf of [...new Set(ETF_UNIVERSE)]) {
+  for (const etf of [...new Set(ETF_UNIVERSE)].filter(e => !SKIP_FULL.has(e))) {
     const f = funds[etf];
     if (!f) { console.warn(`${etf}: not in SEC fund directory`); continue; }
     try {
@@ -133,7 +145,10 @@ async function main() {
     }
   }
 
-  const cusips = new Set(Object.values(raw).flatMap(e => e.positions.filter(p => !p.ticker && p.cusip).map(p => p.cusip)));
+  // Focused (thematic) ETFs first, so a time-budget cut only drops broad-fund tails.
+  const cusips = new Set(Object.values(raw)
+    .sort((a, b) => a.positions.length - b.positions.length)
+    .flatMap(e => e.positions.filter(p => !p.ticker && p.cusip).map(p => p.cusip)));
   await resolveCusips(cusips, cache);
 
   const etfs = {};
@@ -156,7 +171,7 @@ async function main() {
   await mkdir(path.dirname(CUSIP_CACHE_PATH), { recursive: true });
   await writeFile(CUSIP_CACHE_PATH, JSON.stringify(Object.fromEntries(Object.entries(cache).sort()), null, 0) + '\n');
   await writeFile(OUT_PATH, JSON.stringify({ updatedAt: new Date().toISOString(), etfs }) + '\n');
-  console.log(`Wrote ${Object.keys(etfs).length}/${new Set(ETF_UNIVERSE).size} ETFs → ${path.relative(ROOT, OUT_PATH)}`);
+  console.log(`Wrote ${Object.keys(etfs).length}/${new Set(ETF_UNIVERSE).size - SKIP_FULL.size} ETFs → ${path.relative(ROOT, OUT_PATH)}`);
   if (!Object.keys(etfs).length) process.exit(1);
 }
 
