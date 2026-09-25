@@ -10,7 +10,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "fetch:sales-growth": "node scripts/fetch-sales-growth.mjs"
+    "fetch:sales-growth": "node scripts/fetch-sales-growth.mjs",
+    "fetch:etf-holdings": "node scripts/fetch-etf-holdings.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
