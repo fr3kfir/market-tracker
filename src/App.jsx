@@ -11,6 +11,7 @@ import ArielDashboard from './components/ArielDashboard';
 import LeadersLaggards from './components/LeadersLaggards';
 import MarketMonitor from './components/MarketMonitor';
 import StockSearch from './components/StockSearch';
+import EtfHolders from './components/EtfHolders';
 import Screener from './components/Screener';
 import ArielBreadthTable from './components/ArielBreadthTable';
 import ClipboardPanel from './components/ClipboardPanel';
@@ -183,6 +184,7 @@ const TABS = [
   { key: 'earnings', label: 'Earnings' },
   { key: 'sec',      label: 'SEC' },
   { key: 'search',   label: 'Search' },
+  { key: 'etfs',     label: 'ETF Holders' },
 ];
 
 // Filter stocks from stocksByTicker map by breadth criterion
@@ -663,6 +665,7 @@ export default function App() {
         {desktopTab === 'search' && (
           <StockSearch stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />
         )}
+        {desktopTab === 'etfs' && <EtfHolders />}
         <p className="text-center text-xs font-mono mt-4 pb-4" style={{ color: 'var(--text-faint)' }}>
           Live data via Yahoo Finance · Weinstein Stage Method · S2: Price &gt; 50SMA &gt; 200SMA · S4: Price &lt; 50SMA &lt; 200SMA
         </p>
@@ -706,6 +709,7 @@ export default function App() {
         {mobileTab === 'earnings' && <EarningsCalendar stocksByTicker={enrichedStocksByTicker || {}} onClip={onClip} />}
         {mobileTab === 'sec'      && <SecFilings />}
         {mobileTab === 'search'  && <StockSearch stocksByTicker={stocksByTicker || {}} industryGroupData={industryGroupData || []} />}
+        {mobileTab === 'etfs'    && <EtfHolders />}
       </div>
     </div>
   );
