@@ -1,8 +1,58 @@
 import { useState, useMemo, useCallback } from 'react';
 
 // "Which ETFs hold this stock?" — search a ticker (e.g. NBIS) and see every
-// scanned ETF that has it among its top-10 holdings, plus the other names in
-// those ETFs (its "ETF peers", e.g. WGMI → IREN, CIFR, APLD…).
+// scanned ETF that holds it, plus the other names in those ETFs (its
+// "ETF peers", e.g. WGMI → IREN, CIFR, APLD…).
+//
+// Two sources, merged per ETF:
+//  • /data/etf-holdings.json — FULL holdings from SEC N-PORT filings
+//    (refreshed daily by a GitHub Action; weights can be a quarter old)
+//  • /api/etf-holders       — live Yahoo top-10 (fresh weights, new positions)
+
+const CHIPS_SHOWN = 20;      // holdings shown per ETF card before "show all"
+const PEER_MAX_HOLDINGS = 100; // broad ETFs (SPY, IWM…) would flood the peer list
+const PEERS_SHOWN = 40;
+
+let _fullHoldings = null;
+function loadFullHoldings() {
+  if (!_fullHoldings) {
+    _fullHoldings = fetch('/data/etf-holdings.json')
+      .then(r => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then(d => {
+        if (!d) _fullHoldings = null; // retry on next search
+        return d;
+      });
+  }
+  return _fullHoldings;
+}
+
+// ETF → { etf, name, asOf, holdings: [{ symbol, name, weight }] } from both sources
+function mergeSources(full, live) {
+  const etfs = {};
+  for (const [etf, e] of Object.entries(full?.etfs || {})) {
+    etfs[etf] = { etf, name: e.name, asOf: e.asOf, holdings: e.holdings.map(([symbol, name, weight]) => ({ symbol, name, weight })) };
+  }
+  for (const y of [...(live?.holders || []), ...(live?.self ? [live.self] : [])]) {
+    const cur = etfs[y.etf] || (etfs[y.etf] = { etf: y.etf, name: y.name, asOf: null, holdings: [] });
+    cur.name = y.name || cur.name;
+    const bySym = new Map(cur.holdings.map(h => [h.symbol, h]));
+    for (const h of y.holdings) {
+      if (bySym.has(h.symbol)) { if (h.weight != null) bySym.get(h.symbol).weight = h.weight; }
+      else cur.holdings.push({ ...h });
+    }
+    cur.holdings.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+    cur.live = true;
+  }
+  return etfs;
+}
+
+function visibleHoldings(holdings, ticker, all) {
+  if (all) return holdings;
+  const top = holdings.slice(0, CHIPS_SHOWN);
+  const self = holdings.find(h => h.symbol === ticker);
+  return self && !top.includes(self) ? [...top, self] : top;
+}
 
 function Change({ value }) {
   if (value == null) return <span style={{ color: 'var(--text-faint)' }}>—</span>;
@@ -38,6 +88,8 @@ function HoldingChip({ h, quote, highlight, onClick }) {
 }
 
 function EtfCard({ etf, name, weight, holdings, ticker, quotes, onPick }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = visibleHoldings(holdings, ticker, showAll);
   return (
     <div style={{
       background: 'var(--bg-panel)', border: '1px solid var(--border)',
@@ -61,13 +113,35 @@ function EtfCard({ etf, name, weight, holdings, ticker, quotes, onPick }) {
         )}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {holdings.map(h => (
+        {shown.map(h => (
           <HoldingChip key={h.symbol} h={h} quote={quotes[h.symbol]}
             highlight={h.symbol === ticker} onClick={() => onPick(h.symbol)} />
         ))}
+        {holdings.length > CHIPS_SHOWN && (
+          <button onClick={() => setShowAll(v => !v)} style={{
+            padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11,
+            background: 'transparent', border: '1px dashed var(--border)', color: 'var(--text-muted)',
+          }}>{showAll ? 'Show less' : `Show all ${holdings.length}`}</button>
+        )}
       </div>
     </div>
   );
+}
+
+// Stocks that share the most (focused) ETFs with the searched ticker.
+function computePeers(data) {
+  const map = new Map();
+  for (const { etf, holdings } of data.holders) {
+    if (holdings.length > PEER_MAX_HOLDINGS) continue;
+    for (const h of holdings) {
+      if (h.symbol === data.ticker) continue;
+      if (!map.has(h.symbol)) map.set(h.symbol, { symbol: h.symbol, name: h.name, etfs: [], weight: 0 });
+      const p = map.get(h.symbol);
+      p.etfs.push(etf);
+      p.weight += h.weight ?? 0;
+    }
+  }
+  return [...map.values()].sort((a, b) => b.etfs.length - a.etfs.length || b.weight - a.weight);
 }
 
 export default function EtfHolders() {
@@ -86,13 +160,33 @@ export default function EtfHolders() {
     setData(null);
     setQuotes({});
     try {
-      const r = await fetch(`/api/etf-holders?ticker=${encodeURIComponent(t)}`);
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      // Either source alone is enough — only fail if both do.
+      const [full, live] = await Promise.all([
+        loadFullHoldings(),
+        fetch(`/api/etf-holders?ticker=${encodeURIComponent(t)}`)
+          .then(async r => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ]);
+      if (!full && !live) throw new Error('ETF holdings data is unavailable right now');
+
+      const etfs = mergeSources(full, live);
+      const holders = Object.values(etfs)
+        .map(e => ({ ...e, weight: e.holdings.find(h => h.symbol === t)?.weight ?? null }))
+        .filter(e => e.holdings.some(h => h.symbol === t))
+        .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+      const d = {
+        ticker: t, holders, self: etfs[t] || null,
+        scanned: Object.keys(etfs).length,
+        fullAsOf: full?.updatedAt || null,
+        liveOk: !!live,
+      };
       setData(d);
 
-      const cards = [...d.holders, ...(d.self ? [d.self] : [])];
-      const syms = [...new Set(cards.flatMap(c => [c.etf, ...c.holdings.map(h => h.symbol)]))];
+      const cards = [...holders, ...(d.self ? [d.self] : [])];
+      const syms = [...new Set([
+        ...cards.flatMap(c => [c.etf, ...visibleHoldings(c.holdings, t, false).map(h => h.symbol)]),
+        ...computePeers(d).slice(0, PEERS_SHOWN).map(p => p.symbol),
+      ])];
       if (syms.length) {
         const qr = await fetch(`/api/quotes?symbols=${syms.map(encodeURIComponent).join(',')}`);
         if (qr.ok) {
@@ -107,19 +201,7 @@ export default function EtfHolders() {
     }
   }, []);
 
-  // Stocks that share the most ETFs with the searched ticker.
-  const peers = useMemo(() => {
-    if (!data?.holders.length) return [];
-    const map = new Map();
-    for (const { etf, holdings } of data.holders) {
-      for (const h of holdings) {
-        if (h.symbol === data.ticker) continue;
-        if (!map.has(h.symbol)) map.set(h.symbol, { symbol: h.symbol, name: h.name, etfs: [] });
-        map.get(h.symbol).etfs.push(etf);
-      }
-    }
-    return [...map.values()].sort((a, b) => b.etfs.length - a.etfs.length || a.symbol.localeCompare(b.symbol));
-  }, [data]);
+  const peers = useMemo(() => (data ? computePeers(data).slice(0, PEERS_SHOWN) : []), [data]);
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -164,7 +246,7 @@ export default function EtfHolders() {
         <>
           {data.self && (
             <>
-              <h3 style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 8px' }}>{data.ticker} top holdings</h3>
+              <h3 style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 8px' }}>{data.ticker} holdings</h3>
               <EtfCard {...data.self} weight={null} ticker={data.ticker} quotes={quotes} onPick={runSearch} />
             </>
           )}
@@ -203,12 +285,16 @@ export default function EtfHolders() {
             </>
           ) : !data.self && (
             <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              {data.ticker} isn't a top-10 holding in any of the {data.scanned} ETFs scanned.
+              {data.ticker} isn't held by any of the {data.scanned} ETFs scanned.
             </p>
           )}
 
           <p style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 11, marginTop: 12 }}>
-            Based on each ETF's top-10 holdings (Yahoo Finance) across {data.scanned} sector &amp; thematic ETFs ·
+            {data.scanned} sector &amp; thematic ETFs ·{' '}
+            {data.fullAsOf
+              ? `full holdings from SEC N-PORT filings (updated ${new Date(data.fullAsOf).toLocaleDateString()})`
+              : 'full holdings unavailable — top-10 only'}
+            {data.liveOk ? ' + live Yahoo top-10' : ' · live Yahoo top-10 unavailable'} ·
             click any ticker to search it
           </p>
         </>

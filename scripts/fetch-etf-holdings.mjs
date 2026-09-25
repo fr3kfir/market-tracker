@@ -26,8 +26,8 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_PATH = path.join(ROOT, 'public', 'data', 'etf-holdings.json');
 const CUSIP_CACHE_PATH = path.join(ROOT, 'scripts', 'data', 'cusip-tickers.json');
 
-// SEC asks automated clients for a descriptive User-Agent with contact info.
-const SEC_UA = 'MarketTracker/1.0 (+https://market-tracker-seven.vercel.app; github-actions@users.noreply.github.com)';
+// SEC rejects (403) requests whose User-Agent isn't a plain "Name email" pair.
+const SEC_UA = 'MarketTracker github-actions@users.noreply.github.com';
 const SEC_DELAY_MS = 150;          // SEC fair-access limit is 10 req/s
 const FIGI_BATCH = 10;             // OpenFIGI without an API key: 10 jobs/request…
 const FIGI_DELAY_MS = 2600;        // …and 25 requests/minute
