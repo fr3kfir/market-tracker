@@ -22,15 +22,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Diagnose SEC access (temporary)
-        run: |
-          node -e '
-          const uas = ["MarketTracker github-actions@users.noreply.github.com","MarketTracker kfir market-tracker@gmail.com","Sample Company Name AdminContact@samplecompanydomain.com"];
-          const urls = ["https://www.sec.gov/files/company_tickers_mf.json","https://data.sec.gov/submissions/CIK0000320193.json","https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=S000060734&type=NPORT-P&dateb=&owner=include&count=5&output=atom"];
-          (async () => { for (const u of urls) for (const ua of uas) { const r = await fetch(u, { headers: { "User-Agent": ua } }); const t = await r.text(); console.log(r.status, ua, u, t.slice(0, 160).replace(/\s+/g," ")); await new Promise(r => setTimeout(r, 300)); } })();
-          '
-          curl -s -o /dev/null -w "curl %{http_code}\n" -A "MarketTracker market-tracker@gmail.com" https://www.sec.gov/files/company_tickers_mf.json
-
       - run: npm run fetch:etf-holdings
 
       - name: Commit updated data

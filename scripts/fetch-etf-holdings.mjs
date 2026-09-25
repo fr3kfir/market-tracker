@@ -27,7 +27,7 @@ const OUT_PATH = path.join(ROOT, 'public', 'data', 'etf-holdings.json');
 const CUSIP_CACHE_PATH = path.join(ROOT, 'scripts', 'data', 'cusip-tickers.json');
 
 // SEC rejects (403) requests whose User-Agent isn't a plain "Name email" pair.
-const SEC_UA = 'MarketTracker github-actions@users.noreply.github.com';
+const SEC_UA = 'MarketTracker contact@market-tracker-seven.vercel.app';
 const SEC_DELAY_MS = 150;          // SEC fair-access limit is 10 req/s
 const FIGI_BATCH = 10;             // OpenFIGI without an API key: 10 jobs/request…
 const FIGI_DELAY_MS = 2600;        // …and 25 requests/minute
@@ -56,15 +56,14 @@ async function loadFundDirectory() {
   return map;
 }
 
-// Latest NPORT-P for a series → URL of its primary_doc.xml
-async function latestNportUrl(cik, seriesId) {
-  const atom = await (await secFetch(
-    `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${seriesId}&type=NPORT-P&dateb=&owner=include&count=5&output=atom`
+// Latest NPORT-P for a series → URL of its primary_doc.xml. EDGAR's browse
+// page accepts a series ID as the CIK (its atom output doesn't), newest first.
+async function latestNportUrl(seriesId) {
+  const html = await (await secFetch(
+    `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${seriesId}&type=NPORT-P&dateb=&owner=include&count=10`
   )).text();
-  // Newest first; EDGAR's atom spells the tag <accession-nunber>, so match loosely.
-  const acc = atom.match(/<accession-n[a-z]+>([\d-]+)<\/accession-n[a-z]+>/)?.[1];
-  if (!acc) return null;
-  return `https://www.sec.gov/Archives/edgar/data/${Number(cik)}/${acc.replace(/-/g, '')}/primary_doc.xml`;
+  const m = html.match(/href="(\/Archives\/edgar\/data\/\d+\/\d+)\/[\d-]+-index\.html?"/);
+  return m ? `https://www.sec.gov${m[1]}/primary_doc.xml` : null;
 }
 
 const tag = (block, name) => block.match(new RegExp(`<${name}>([^<]*)</${name}>`))?.[1]?.trim() ?? null;
@@ -123,7 +122,7 @@ async function main() {
     const f = funds[etf];
     if (!f) { console.warn(`${etf}: not in SEC fund directory`); continue; }
     try {
-      const url = await latestNportUrl(f.cik, f.seriesId);
+      const url = await latestNportUrl(f.seriesId);
       if (!url) { console.warn(`${etf}: no NPORT-P filing`); continue; }
       const parsed = parseNport(await (await secFetch(url)).text());
       if (!parsed.positions.length) { console.warn(`${etf}: 0 equity positions (${url})`); continue; }
