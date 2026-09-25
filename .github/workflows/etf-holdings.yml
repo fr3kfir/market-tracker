@@ -4,8 +4,6 @@ on:
   schedule:
     - cron: '30 11 * * *' # daily; N-PORT filings land quarterly, the daily run just picks them up promptly
   workflow_dispatch: {}
-  push:
-    branches: [claude/vibrant-darwin-s7xv72]
 
 permissions:
   contents: write
