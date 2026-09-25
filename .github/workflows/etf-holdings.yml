@@ -1,0 +1,36 @@
+name: Update ETF holdings data
+
+on:
+  schedule:
+    - cron: '30 11 * * *' # daily; N-PORT filings land quarterly, the daily run just picks them up promptly
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: etf-holdings
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run fetch:etf-holdings
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/etf-holdings.json scripts/data/cusip-tickers.json
+          git diff --staged --quiet || git commit -m "Update ETF holdings data"
+          git push
