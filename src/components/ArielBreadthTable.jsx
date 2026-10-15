@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 const PRIMARY_COLS = [
   { key: 'up4',     label: 'Stocks\nUp 4%+\nToday',   bull: true  },
@@ -36,12 +36,14 @@ function usePercentiles(rows) {
 }
 
 // ── Contrast-safe text color ──────────────────────────────────────────────
-// The cell background is a semi-transparent tint over the (near-black) panel
+// The cell background is a semi-transparent tint over the panel
 // background, so a fixed dark-green/dark-red text color goes invisible at low
 // alpha (the tint barely lightens the dark panel underneath it). Instead we
 // blend the tint over the panel color and pick text by the *actual* resulting
 // luminance, so every bucket stays readable regardless of alpha.
-const PANEL_RGB = [13, 20, 36]; // var(--bg-panel) in the dark theme
+const PANEL_DARK_RGB = [13, 20, 36];     // var(--bg-panel) in the dark theme
+const PANEL_LIGHT_RGB = [255, 255, 255]; // var(--bg-panel) in the light theme
+
 const GREEN_RGB = [34, 197, 94];
 const RED_RGB   = [220, 38, 38];
 
@@ -65,38 +67,51 @@ function contrastRatio(rgbA, rgbB) {
 }
 // Picks whichever candidate (dark vs light) has the higher actual contrast
 // ratio against this specific blended background — no guessed thresholds.
-function fgForTint(alpha, green) {
-  const bg = blend(PANEL_RGB, green ? GREEN_RGB : RED_RGB, alpha);
+function fgForTint(alpha, green, panel) {
+  const bg = blend(panel, green ? GREEN_RGB : RED_RGB, alpha);
   const dark = green ? GREEN_DARK : RED_DARK;
   const light = green ? GREEN_LIGHT : RED_LIGHT;
   const better = contrastRatio(bg, dark) >= contrastRatio(bg, light) ? dark : light;
   return `rgb(${better[0]},${better[1]},${better[2]})`;
 }
 
+// App toggles the theme via a `light` class on <body>; track it so the
+// contrast calculation blends over the panel color actually on screen.
+function useIsLight() {
+  const read = () => typeof document !== 'undefined' && document.body.classList.contains('light');
+  const [isLight, setIsLight] = useState(read);
+  useEffect(() => {
+    const obs = new MutationObserver(() => setIsLight(read()));
+    obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+  return isLight;
+}
+
 // Returns [background, textColor]
-function cellStyle(val, min, max, bull, isRatio, isPct) {
+function cellStyle(val, min, max, bull, isRatio, isPct, panel) {
   if (val == null) return ['transparent', 'var(--text-muted)'];
 
   if (isRatio) {
-    if (val >= 3.5) return ['rgba(21,128,61,0.85)',  fgForTint(0.85, true)];
-    if (val >= 2.5) return ['rgba(22,163,74,0.65)',  fgForTint(0.65, true)];
-    if (val >= 2.0) return ['rgba(34,197,94,0.38)',  fgForTint(0.38, true)];
-    if (val >= 1.5) return ['rgba(74,222,128,0.20)', fgForTint(0.20, true)];
-    if (val >= 1.1) return ['rgba(34,197,94,0.12)',  fgForTint(0.12, true)];
+    if (val >= 3.5) return ['rgba(21,128,61,0.85)',  fgForTint(0.85, true, panel)];
+    if (val >= 2.5) return ['rgba(22,163,74,0.65)',  fgForTint(0.65, true, panel)];
+    if (val >= 2.0) return ['rgba(34,197,94,0.38)',  fgForTint(0.38, true, panel)];
+    if (val >= 1.5) return ['rgba(74,222,128,0.20)', fgForTint(0.20, true, panel)];
+    if (val >= 1.1) return ['rgba(34,197,94,0.12)',  fgForTint(0.12, true, panel)];
     if (val >= 0.9) return ['rgba(100,116,139,0.08)','var(--text-muted)'];
-    if (val >= 0.7) return ['rgba(220,38,38,0.20)',  fgForTint(0.20, false)];
-    if (val >= 0.5) return ['rgba(220,38,38,0.45)',  fgForTint(0.45, false)];
-    return                 ['rgba(185,28,28,0.80)',  fgForTint(0.80, false)];
+    if (val >= 0.7) return ['rgba(220,38,38,0.20)',  fgForTint(0.20, false, panel)];
+    if (val >= 0.5) return ['rgba(220,38,38,0.45)',  fgForTint(0.45, false, panel)];
+    return                 ['rgba(185,28,28,0.80)',  fgForTint(0.80, false, panel)];
   }
 
   if (isPct) {
-    if (val >= 68) return ['rgba(21,128,61,0.82)',  fgForTint(0.82, true)];
-    if (val >= 60) return ['rgba(34,197,94,0.48)',  fgForTint(0.48, true)];
-    if (val >= 52) return ['rgba(74,222,128,0.22)', fgForTint(0.22, true)];
+    if (val >= 68) return ['rgba(21,128,61,0.82)',  fgForTint(0.82, true, panel)];
+    if (val >= 60) return ['rgba(34,197,94,0.48)',  fgForTint(0.48, true, panel)];
+    if (val >= 52) return ['rgba(74,222,128,0.22)', fgForTint(0.22, true, panel)];
     if (val >= 46) return ['rgba(100,116,139,0.08)','var(--text-muted)'];
-    if (val >= 38) return ['rgba(220,38,38,0.22)',  fgForTint(0.22, false)];
-    if (val >= 30) return ['rgba(220,38,38,0.50)',  fgForTint(0.50, false)];
-    return                 ['rgba(185,28,28,0.82)',  fgForTint(0.82, false)];
+    if (val >= 38) return ['rgba(220,38,38,0.22)',  fgForTint(0.22, false, panel)];
+    if (val >= 30) return ['rgba(220,38,38,0.50)',  fgForTint(0.50, false, panel)];
+    return                 ['rgba(185,28,28,0.82)',  fgForTint(0.82, false, panel)];
   }
 
   const range = max - min;
@@ -105,7 +120,7 @@ function cellStyle(val, min, max, bull, isRatio, isPct) {
   if (t < 0.08) return ['rgba(100,116,139,0.08)', 'var(--text-muted)'];
   const alpha = Math.round((0.12 + t * 0.78) * 100) / 100;
   const rgb = bull ? '34,197,94' : '220,38,38';
-  return [`rgba(${rgb},${alpha})`, fgForTint(alpha, bull)];
+  return [`rgba(${rgb},${alpha})`, fgForTint(alpha, bull, panel)];
 }
 
 function fmtDate(d) {
@@ -204,6 +219,8 @@ function TickerDrilldown({ date, col, tickers, onClose }) {
 
 export default function ArielBreadthTable({ rows, breadth, loading }) {
   const pct = usePercentiles(rows);
+  const isLight = useIsLight();
+  const panel = isLight ? PANEL_LIGHT_RGB : PANEL_DARK_RGB;
   const [drilldown, setDrilldown] = useState(null); // { date, col, tickers } | null
 
   if (loading) {
@@ -308,7 +325,7 @@ export default function ArielBreadthTable({ rows, breadth, loading }) {
                   {ALL_DATA_COLS.map(col => {
                     const val = row[col.key];
                     const { min = 0, max = 1 } = pct[col.key] || {};
-                    const [bg, fg] = cellStyle(val, min, max, col.bull, col.isRatio, col.isPct);
+                    const [bg, fg] = cellStyle(val, min, max, col.bull, col.isRatio, col.isPct, panel);
                     const cellTickers = row.tickers?.[col.key];
                     const clickable = !col.isRatio && cellTickers !== undefined;
                     return (
