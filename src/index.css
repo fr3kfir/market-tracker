@@ -23,6 +23,7 @@ html { scroll-behavior: smooth; }
   --red:        #f4617f;
   --panel:      var(--bg-panel);
   --hover:      rgba(79,142,247,0.07);
+  --header-bg:  rgba(8,12,20,0.92);
 }
 
 .light {
@@ -40,6 +41,7 @@ html { scroll-behavior: smooth; }
   --green:      #059669;
   --red:        #dc2626;
   --hover:      rgba(37,99,235,0.05);
+  --header-bg:  rgba(255,255,255,0.92);
 }
 
 body {
@@ -110,6 +112,29 @@ body {
 }
 .clickable-row:hover {
   background: var(--hover);
+}
+
+/* ── Header nav tabs ───────────────────────────────── */
+.nav-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.nav-tab:hover:not(.active) {
+  color: var(--text);
+  background: var(--hover);
+}
+.nav-tab.active {
+  color: var(--accent);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
 }
 
 /* ── Buttons ────────────────────────────────────────── */
