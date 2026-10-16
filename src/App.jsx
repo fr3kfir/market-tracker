@@ -478,7 +478,7 @@ export default function App() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* ── Header ── */}
       <header className="sticky top-0 z-20" style={{
-        background: 'rgba(8,12,20,0.92)',
+        background: 'var(--header-bg)',
         backdropFilter: 'blur(14px)',
         WebkitBackdropFilter: 'blur(14px)',
         borderBottom: '1px solid var(--border)',
@@ -539,16 +539,8 @@ export default function App() {
             const active = desktopTab === tab.key;
             return (
               <button key={tab.key} onClick={() => handleTabChange(tab.key, setDesktopTab)}
-                style={{
-                  padding: '8px 14px', fontSize: 11, fontWeight: active ? 700 : 600,
-                  color: active ? 'var(--accent)' : 'var(--text-muted)',
-                  borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                  background: 'transparent', border: 'none', borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                  whiteSpace: 'nowrap', letterSpacing: '0.01em',
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text)'; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)'; }}
+                className={`nav-tab${active ? ' active' : ''}`}
+                style={{ padding: '8px 14px', fontSize: 11 }}
               >
                 {tab.label}
               </button>
@@ -562,13 +554,8 @@ export default function App() {
             const active = mobileTab === tab.key;
             return (
               <button key={tab.key} onClick={() => handleTabChange(tab.key, setMobileTab)}
-                style={{
-                  flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: active ? 700 : 600,
-                  background: 'transparent', border: 'none',
-                  borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                  color: active ? 'var(--accent)' : 'var(--text-muted)',
-                }}>
+                className={`nav-tab${active ? ' active' : ''}`}
+                style={{ flexShrink: 0, padding: '8px 12px', fontSize: 11 }}>
                 {tab.label}
               </button>
             );
